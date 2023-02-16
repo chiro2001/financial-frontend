@@ -1,6 +1,6 @@
 {
-  "name": "egui Template PWA",
-  "short_name": "egui-template-pwa",
+  "name": "Financial Analysis PWA",
+  "short_name": "financial-analysis",
   "icons": [
     {
       "src": "./icon-256.png",

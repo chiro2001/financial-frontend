@@ -1,6 +1,9 @@
 #![warn(clippy::all, rust_2018_idioms)]
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
+use financial_analysis::app::FinancialAnalysis;
+use financial_analysis::constants::APP_NAME;
+
 // When compiling natively:
 #[cfg(not(target_arch = "wasm32"))]
 fn main() -> eframe::Result<()> {
@@ -9,9 +12,9 @@ fn main() -> eframe::Result<()> {
 
     let native_options = eframe::NativeOptions::default();
     eframe::run_native(
-        "eframe template",
+        APP_NAME,
         native_options,
-        Box::new(|cc| Box::new(eframe_template::TemplateApp::new(cc))),
+        Box::new(|cc| Box::new(FinancialAnalysis::new(cc))),
     )
 }
 
@@ -30,7 +33,7 @@ fn main() {
         eframe::start_web(
             "the_canvas_id", // hardcode it
             web_options,
-            Box::new(|cc| Box::new(eframe_template::TemplateApp::new(cc))),
+            Box::new(|cc| Box::new(FinancialAnalysis::new(cc))),
         )
         .await
         .expect("failed to start eframe");

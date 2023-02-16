@@ -1,0 +1,1 @@
+pub const APP_NAME: &'static str = "上市公司财务信息收集分析";
