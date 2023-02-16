@@ -1,7 +1,6 @@
 #![warn(clippy::all, rust_2018_idioms)]
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
-use financial_analysis::constants::APP_NAME;
 use financial_analysis::financial_analysis::FinancialAnalysis;
 
 // When compiling natively:
@@ -12,7 +11,7 @@ fn main() -> eframe::Result<()> {
 
     let native_options = eframe::NativeOptions::default();
     eframe::run_native(
-        APP_NAME,
+        financial_analysis::constants::APP_NAME,
         native_options,
         Box::new(|cc| Box::new(FinancialAnalysis::new(cc))),
     )
