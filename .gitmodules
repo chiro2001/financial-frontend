@@ -1,0 +1,3 @@
+[submodule "tarpc"]
+	path = tarpc
+	url = https://github.com/whizsid/tarpc
