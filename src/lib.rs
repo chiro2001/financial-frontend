@@ -2,3 +2,11 @@
 
 pub mod app;
 pub mod constants;
+pub mod financial_analysis;
+pub mod debug_panel;
+pub mod run_mode;
+pub mod frame_history;
+
+#[macro_use]
+extern crate rust_i18n;
+i18n!("locales");
