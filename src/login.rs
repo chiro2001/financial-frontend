@@ -18,6 +18,7 @@ impl FinancialAnalysis {
                 });
             ui.vertical_centered_justified(|ui| {
                 if ui.button("登录").clicked() {}
+                if ui.button("注册").clicked() {}
             });
         });
     }

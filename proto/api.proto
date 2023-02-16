@@ -1,0 +1,14 @@
+syntax = "proto3";
+import "google/protobuf/wrappers.proto";
+import "google/protobuf/empty.proto";
+
+package financial_analysis;
+
+service ApiRpc {
+    rpc Register(RegisterRequest) returns (google.protobuf.Empty) {}
+}
+
+message RegisterRequest {
+    string username = 1;
+    string password = 2;
+}
