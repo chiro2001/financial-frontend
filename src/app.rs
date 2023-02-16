@@ -1,4 +1,4 @@
-use egui::CentralPanel;
+use egui::{CentralPanel, SidePanel, TopBottomPanel};
 use crate::constants::REPAINT_AFTER_SECONDS;
 use crate::financial_analysis::FinancialAnalysis;
 use crate::run_mode::RunMode;
@@ -19,8 +19,18 @@ impl eframe::App for FinancialAnalysis {
                 ));
             }
         }
+        TopBottomPanel::top("global_menu").show(ctx, |ui| {
+            ui.checkbox(&mut self.enable_debug_panel, "调试面板");
+        });
+        if self.enable_debug_panel {
+            SidePanel::left("debug_panel").show(ctx, |ui| {
+                self.debug_panel(ui);
+            });
+        }
         CentralPanel::default().show(ctx, |ui| {
-            self.debug_panel(ui);
+            ui.add_enabled_ui(self.login_done, |ui| {
+                ui.label("主界面");
+            });
         });
     }
 

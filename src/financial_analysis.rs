@@ -6,19 +6,24 @@ use crate::run_mode::RunMode;
 #[derive(serde::Deserialize, serde::Serialize)]
 #[serde(default)] // if we add new fields, give them default values when deserializing old state
 pub struct FinancialAnalysis {
-    token: String,
+    pub token: String,
+    #[serde(skip)]
+    pub login_done: bool,
     #[serde(skip)]
     pub run_mode: RunMode,
     #[serde(skip)]
     pub frame_history: FrameHistory,
+    pub enable_debug_panel: bool,
 }
 
 impl Default for FinancialAnalysis {
     fn default() -> Self {
         Self {
             token: "".to_string(),
+            login_done: false,
             run_mode: Default::default(),
             frame_history: Default::default(),
+            enable_debug_panel: true,
         }
     }
 }
