@@ -20,7 +20,10 @@ impl eframe::App for FinancialAnalysis {
             }
         }
         TopBottomPanel::top("global_menu").show(ctx, |ui| {
-            ui.checkbox(&mut self.enable_debug_panel, "调试面板");
+            egui::menu::bar(ui, |ui| {
+                egui::widgets::global_dark_light_mode_switch(ui);
+                ui.checkbox(&mut self.enable_debug_panel, "调试面板");
+            });
         });
         if self.enable_debug_panel {
             SidePanel::left("debug_panel").show(ctx, |ui| {
