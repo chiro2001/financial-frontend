@@ -35,6 +35,9 @@ impl eframe::App for FinancialAnalysis {
                 ui.label("主界面");
             });
         });
+        if !self.login_done {
+            self.login_window(ctx);
+        }
     }
 
     /// Called by the frame work to save state before shutdown.

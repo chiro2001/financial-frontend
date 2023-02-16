@@ -14,6 +14,11 @@ pub struct FinancialAnalysis {
     #[serde(skip)]
     pub frame_history: FrameHistory,
     pub enable_debug_panel: bool,
+
+    // login inputs
+    pub input_username: String,
+    #[serde(skip)]
+    pub input_password: String,
 }
 
 impl Default for FinancialAnalysis {
@@ -24,6 +29,8 @@ impl Default for FinancialAnalysis {
             run_mode: Default::default(),
             frame_history: Default::default(),
             enable_debug_panel: true,
+            input_username: "test".to_string(),
+            input_password: "test".to_string(),
         }
     }
 }
