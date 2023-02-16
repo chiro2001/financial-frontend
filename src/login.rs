@@ -4,7 +4,7 @@ use crate::password::password;
 
 impl FinancialAnalysis {
     pub fn login_window(&mut self, ctx: &egui::Context) {
-        Window::new("登录").show(ctx, |ui| {
+        Window::new("账户登录").show(ctx, |ui| {
             egui::Grid::new("login_grid")
                 .num_columns(2)
                 .spacing([40.0, 4.0])
@@ -16,6 +16,9 @@ impl FinancialAnalysis {
                     ui.label("密码");
                     ui.add(password(&mut self.input_password));
                 });
+            ui.vertical_centered_justified(|ui| {
+                if ui.button("登录").clicked() {}
+            });
         });
     }
 }
