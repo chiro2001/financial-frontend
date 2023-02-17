@@ -27,6 +27,7 @@ tokio-util = { version = "0.7.4", default-features = false, features = ["codec"]
 tokio-serde = "0.8.0"
 anyhow = "1.0.69"
 tracing = "0.1.37"
+futures = "0.3.26"
 
 # native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]

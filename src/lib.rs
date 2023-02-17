@@ -10,6 +10,9 @@ pub mod password;
 pub mod rpc_client;
 pub mod rpc_client_wasm;
 pub mod run_mode;
+pub mod utils;
+pub mod message;
+pub mod service;
 
 #[macro_use]
 extern crate rust_i18n;

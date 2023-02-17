@@ -38,7 +38,7 @@ mod test {
     #[test]
     fn client_test() -> Result<()> {
         tokio::runtime::Builder::new_current_thread()
-            .enable_io().build()?.block_on(async {
+            .enable_io().enable_time().build()?.block_on(async {
             let client = get_client().await.unwrap();
             let a = client.ping(tarpc::context::current()).await.unwrap().unwrap();
             println!("result: {:?}", a);

@@ -693,6 +693,7 @@ dependencies = [
  "console_error_panic_hook",
  "eframe",
  "egui",
+ "futures",
  "jsonwebtoken",
  "once_cell",
  "rpc",
