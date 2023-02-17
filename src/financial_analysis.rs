@@ -2,9 +2,12 @@ use std::sync::mpsc;
 use crate::frame_history::FrameHistory;
 use crate::run_mode::RunMode;
 use egui::{FontData, FontDefinitions, FontFamily};
+use tracing::info;
 use rpc::*;
-use crate::message::Channel;
+use crate::message::{Channel, Message};
+use crate::rpc_client::get_client;
 use crate::service::Service;
+use crate::utils::execute;
 
 /// We derive Deserialize/Serialize so we can persist app state on shutdown.
 #[derive(serde::Deserialize, serde::Serialize)]
@@ -87,6 +90,13 @@ impl FinancialAnalysis {
         self.channel = Some(Channel {
             tx: channel_req_tx,
             rx: channel_resp_rx,
+        });
+        // try to connect server
+        let tx = self.channel.as_ref().unwrap().tx.clone();
+        execute(async move {
+            let client = get_client().await.unwrap();
+            info!("got client");
+            tx.send(Message::ApiClientConnect(client)).unwrap();
         });
         self
     }
