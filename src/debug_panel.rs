@@ -1,6 +1,6 @@
-use egui::Ui;
 use crate::financial_analysis::FinancialAnalysis;
 use crate::run_mode::RunMode;
+use egui::Ui;
 
 impl FinancialAnalysis {
     pub fn debug_panel(&mut self, ui: &mut Ui) {

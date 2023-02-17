@@ -1,6 +1,6 @@
-use egui::{FontData, FontDefinitions, FontFamily};
 use crate::frame_history::FrameHistory;
 use crate::run_mode::RunMode;
+use egui::{FontData, FontDefinitions, FontFamily};
 
 /// We derive Deserialize/Serialize so we can persist app state on shutdown.
 #[derive(serde::Deserialize, serde::Serialize)]

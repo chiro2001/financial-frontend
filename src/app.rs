@@ -1,7 +1,7 @@
-use egui::{CentralPanel, SidePanel, TopBottomPanel};
 use crate::constants::REPAINT_AFTER_SECONDS;
 use crate::financial_analysis::FinancialAnalysis;
 use crate::run_mode::RunMode;
+use egui::{CentralPanel, SidePanel, TopBottomPanel};
 
 impl eframe::App for FinancialAnalysis {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {

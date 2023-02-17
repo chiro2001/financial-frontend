@@ -1,6 +1,6 @@
-use egui::Window;
 use crate::financial_analysis::FinancialAnalysis;
 use crate::password::password;
+use egui::Window;
 
 impl FinancialAnalysis {
     pub fn login_window(&mut self, ctx: &egui::Context) {
