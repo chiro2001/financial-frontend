@@ -15,7 +15,7 @@ impl Service {
     async fn handle_message(&mut self, msg: Message) -> Result<bool> {
         info!("service handle msg: {:?}", msg);
         match msg {
-            Message::ApiClientConnect(_) => {}
+            // Message::ApiClientConnect(_) => {}
         }
         Ok(false)
     }

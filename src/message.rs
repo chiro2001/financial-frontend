@@ -2,7 +2,7 @@ use std::sync::mpsc;
 
 #[derive(Debug)]
 pub enum Message {
-    ApiClientConnect(rpc::ApiClient),
+    // ApiClientConnect(rpc::ApiClient),
 }
 
 unsafe impl Send for Message {}

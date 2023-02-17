@@ -7,8 +7,6 @@ pub mod financial_analysis;
 pub mod frame_history;
 pub mod login;
 pub mod password;
-pub mod rpc_client;
-pub mod rpc_client_wasm;
 pub mod run_mode;
 pub mod utils;
 pub mod message;
