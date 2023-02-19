@@ -1,7 +1,10 @@
 use crate::financial_analysis::FinancialAnalysis;
 use crate::password::password;
 use egui::Window;
-use rpc::api::LoginRegisterRequest;
+use rpc::api::{LoginRegisterRequest, ReasonResp};
+use rpc::API_PORT;
+use tonic::{Response, Status};
+use tracing::{error, info};
 use crate::utils::block_on;
 
 impl FinancialAnalysis {
@@ -19,7 +22,9 @@ impl FinancialAnalysis {
                     ui.add(password(&mut self.input_password));
                 });
             ui.vertical_centered_justified(|ui| {
-                if ui.button("登录").clicked() {}
+                if ui.button("登录").clicked() {
+                    block_on(self.login());
+                }
                 if ui.button("注册").clicked() {
                     block_on(self.register());
                 }
@@ -33,14 +38,23 @@ impl FinancialAnalysis {
         }
     }
     pub async fn register(&self) {
-        let addr = format!("http://127.0.0.1:{}", 51411);
-        if cfg!(target_arch = "wasm32") {
-            use tonic_web_wasm_client::Client;
-            let mut client = rpc::api::register_client::RegisterClient::new(Client::new(addr));
-            let _r = client.register(LoginRegisterRequest { username: "".to_string(), password: "".to_string() }).await;
-        } else {
-            let mut client = rpc::api::register_client::RegisterClient::new(tonic::transport::Endpoint::new(addr).unwrap().connect().await.unwrap());
-            let _r = client.register(LoginRegisterRequest { username: "".to_string(), password: "".to_string() }).await;
-        }
+        let addr = format!("http://127.0.0.1:{}", API_PORT);
+        let res =
+            match if cfg!(target_arch = "wasm32") {
+                use tonic_web_wasm_client::Client;
+                let mut client = rpc::api::register_client::RegisterClient::new(Client::new(addr));
+                client.register(LoginRegisterRequest { username: "".to_string(), password: "".to_string() }).await
+            } else {
+                let mut client = rpc::api::register_client::RegisterClient::new(tonic::transport::Endpoint::new(addr).unwrap().connect().await.unwrap());
+                client.register(LoginRegisterRequest { username: "".to_string(), password: "".to_string() }).await
+            } {
+                Ok(r) => r,
+                Err(e) => {
+                    error!("{}", e);
+                    tonic::Response::new(ReasonResp { err: true, reason: e.to_string() })
+                }
+            };
+        let data = res.into_inner();
+        info!("register resp: {:?}", data);
     }
 }

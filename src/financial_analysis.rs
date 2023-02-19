@@ -2,6 +2,7 @@ use std::sync::mpsc;
 use crate::frame_history::FrameHistory;
 use crate::run_mode::RunMode;
 use egui::{FontData, FontDefinitions, FontFamily};
+use rpc::API_PORT;
 use tracing::info;
 use crate::message::{Channel, Message};
 use crate::message::Message::ApiClientConnect;
@@ -100,7 +101,7 @@ impl FinancialAnalysis {
         let tx = channel_resp_tx;
         execute(async move {
             use tonic_web_wasm_client::Client;
-            let base_url = format!("http://127.0.0.1:{}", 51411);
+            let base_url = format!("http://127.0.0.1:{}", API_PORT);
             let client = rpc::api::api_rpc_client::ApiRpcClient::new(Client::new(base_url));
             // let response = query_client.register(RegisterRequest { username: "".to_string(), password: "".to_string() }).await;
             tx.send(ApiClientConnect(client)).unwrap();
@@ -120,17 +121,19 @@ impl FinancialAnalysis {
 
 #[cfg(test)]
 mod test {
+    use rpc::api::LoginRegisterRequest;
+    use rpc::API_PORT;
     use tracing::info;
 
     #[test]
     fn client_native() {
         tracing_subscriber::fmt::init();
         tokio::runtime::Runtime::new().unwrap().block_on(async move {
-            let addr = "http://127.0.0.1:51411";
+            let addr = format!("http://127.0.0.1:{}", API_PORT);
             //  why it did not generate `connect`?
-            let mut client = rpc::api::api_rpc_client::ApiRpcClient::new(tonic::transport::Endpoint::new(addr).unwrap().connect().await.unwrap());
+            let mut client = rpc::api::register_client::RegisterClient::new(tonic::transport::Endpoint::new(addr).unwrap().connect().await.unwrap());
             info!("got client: {:?}", client);
-            let _r = client.register(RegisterRequest::default()).await.unwrap();
+            let _r = client.register(LoginRegisterRequest::default()).await.unwrap();
         });
     }
 }
