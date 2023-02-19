@@ -19,6 +19,17 @@ impl eframe::App for FinancialAnalysis {
                 ));
             }
         }
+
+        if let Some(channel) = &self.channel {
+            let mut messages = vec![];
+            while let Ok(rx) = channel.rx.try_recv() {
+                messages.push(rx);
+            }
+            for rx in messages {
+                self.message_handler(rx);
+            }
+        }
+
         TopBottomPanel::top("global_menu").show(ctx, |ui| {
             egui::menu::bar(ui, |ui| {
                 egui::widgets::global_dark_light_mode_switch(ui);

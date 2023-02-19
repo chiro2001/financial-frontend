@@ -2,7 +2,6 @@ use std::sync::mpsc;
 use crate::frame_history::FrameHistory;
 use crate::run_mode::RunMode;
 use egui::{FontData, FontDefinitions, FontFamily};
-use rpc::api::RegisterRequest;
 use tracing::info;
 use crate::message::{Channel, Message};
 use crate::message::Message::ApiClientConnect;
@@ -29,8 +28,13 @@ pub struct FinancialAnalysis {
     pub input_username: String,
     #[serde(skip)]
     pub input_password: String,
-    // #[serde(skip)]
-    // pub client: Option<ApiClient>,
+    #[cfg(target_arch = "wasm32")]
+    #[serde(skip)]
+    pub client: Option<rpc::api::api_rpc_client::ApiRpcClient<tonic_web_wasm_client::Client>>,
+    #[cfg(not(target_arch = "wasm32"))]
+    #[serde(skip)]
+    // pub client: Option<rpc::api::api_rpc_client::ApiRpcClient<tonic::client::Grpc<>>>,
+    pub client: Option<rpc::api::api_rpc_client::ApiRpcClient<tonic_web_wasm_client::Client>>,
 }
 
 impl Default for FinancialAnalysis {
@@ -45,6 +49,7 @@ impl Default for FinancialAnalysis {
             input_username: "test".to_string(),
             input_password: "test".to_string(),
             // client: None,
+            client: None,
         }
     }
 }
@@ -92,19 +97,41 @@ impl FinancialAnalysis {
             rx: channel_resp_rx,
         });
         // try to connect server
-        let tx = self.channel.as_ref().unwrap().tx.clone();
+        let tx = channel_resp_tx;
         execute(async move {
-            // let client = get_client().await.unwrap();
-            // info!("got client");
-            // tx.send(Message::ApiClientConnect(client)).unwrap();
             use tonic_web_wasm_client::Client;
-
             let base_url = format!("http://127.0.0.1:{}", 51411);
             let query_client = rpc::api::api_rpc_client::ApiRpcClient::new(Client::new(base_url));
-            info!("client: {:?}", query_client);
             // let response = query_client.register(RegisterRequest { username: "".to_string(), password: "".to_string() }).await;
             tx.send(ApiClientConnect(query_client)).unwrap();
         });
         self
+    }
+
+    pub fn message_handler(&mut self, msg: Message) {
+        match msg {
+            ApiClientConnect(client) => {
+                info!("set client: {:?}", client);
+                self.client = Some(client);
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use rpc::api::RegisterRequest;
+    use tracing::info;
+
+    #[test]
+    fn client_native() {
+        tracing_subscriber::fmt::init();
+        tokio::runtime::Runtime::new().unwrap().block_on(async move {
+            let addr = "http://127.0.0.1:51411";
+            //  why it did not generate `connect`?
+            let mut client = rpc::api::api_rpc_client::ApiRpcClient::new(tonic::transport::Endpoint::new(addr).unwrap().connect().await.unwrap());
+            info!("got client: {:?}", client);
+            let _r = client.register(RegisterRequest::default()).await.unwrap();
+        });
     }
 }
