@@ -3,3 +3,6 @@
 # check status at https://developer.mozilla.org/en-US/docs/Web/API/Clipboard#browser_compatibility
 [target.wasm32-unknown-unknown]
 rustflags = ["--cfg=web_sys_unstable_apis"]
+
+[build]
+target = "wasm32-unknown-unknown"

@@ -25,7 +25,8 @@ anyhow = "1.0.69"
 tracing = "0.1.37"
 futures = "0.3.26"
 rpc = { path = "rpc" }
-tonic-web-wasm-client = "0.3.2"
+#tonic-web-wasm-client = "0.3.2"
+tonic-web-wasm-client = { path = "tonic-web-wasm-client" }
 lazy_static = "1.4.0"
 
 # native:
@@ -41,6 +42,7 @@ tracing-wasm = "0.2"
 wasm-bindgen-futures = "0.4"
 js-sys = "0.3.60"
 web-sys = { version = "0.3.60", features = ["Window"] }
+tonic = { version = "0.8.3", default-features = false, features = ["codegen"] }
 
 # For gRPC Client use
 #wasm-bindgen = "0.2.83"

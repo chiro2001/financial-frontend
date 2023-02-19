@@ -1,3 +1,6 @@
 [submodule "tarpc"]
 	path = tarpc
 	url = https://github.com/whizsid/tarpc
+[submodule "tonic-web-wasm-client"]
+	path = tonic-web-wasm-client
+	url = https://github.com/chiro2001/tonic-web-wasm-client

@@ -2,17 +2,18 @@ use std::sync::mpsc;
 use crate::frame_history::FrameHistory;
 use crate::run_mode::RunMode;
 use egui::{FontData, FontDefinitions, FontFamily};
+#[cfg(not(target_arch = "wasm32"))]
 use lazy_static::lazy_static;
 use rpc::API_PORT;
 use tracing::info;
 use crate::message::{Channel, Message};
 use crate::message::Message::ApiClientConnect;
 use crate::service::Service;
-use std::sync::Arc;
+use rpc::api::api_rpc_client::ApiRpcClient;
 
 #[cfg(not(target_arch = "wasm32"))]
 lazy_static! {
-    pub static ref RT: Arc<tokio::runtime::Runtime> = Arc::new(tokio::runtime::Builder::new_multi_thread()
+    pub static ref RT: std::sync::Arc<tokio::runtime::Runtime> = std::sync::Arc::new(tokio::runtime::Builder::new_multi_thread()
     .enable_io().build().unwrap());
 }
 
@@ -21,7 +22,8 @@ pub type ApiChannel = tonic::transport::Channel;
 #[cfg(target_arch = "wasm32")]
 pub type ApiChannel = tonic_web_wasm_client::Client;
 
-pub type MainApiClient = rpc::api::api_rpc_client::ApiRpcClient<ApiChannel>;
+// pub type MainApiClient = rpc::api::api_rpc_client::ApiRpcClient<ApiChannel>;
+pub type MainApiClient = ApiRpcClient<tonic::codegen::InterceptedService<ApiChannel, fn(tonic::Request<()>) -> Result<tonic::Request<()>, tonic::Status>>>;
 pub type RegisterApiClient = rpc::api::register_client::RegisterClient<ApiChannel>;
 
 pub type Token = String;
@@ -116,14 +118,35 @@ impl FinancialAnalysis {
             let tx = channel_resp_tx;
             RT.spawn(async move {
                 info!("preparing main api client...");
-                let client = rpc::api::api_rpc_client::ApiRpcClient::new(tonic::transport::Endpoint::new(addr).unwrap().connect().await.unwrap());
+                // let client = rpc::api::api_rpc_client::ApiRpcClient::new(tonic::transport::Endpoint::new(addr).unwrap().connect().await.unwrap());
+                let mut client: MainApiClient = rpc::api::api_rpc_client::ApiRpcClient::with_interceptor(
+                    // tonic::transport::Endpoint::new(addr).unwrap().connect().await.unwrap(),
+                    tonic::transport::Channel::from_static("http://127.0.0.1:51411").connect().await.unwrap(),
+                    move |mut req: tonic::Request<()>| {
+                        let token: tonic::metadata::MetadataValue<_> = "token".parse().unwrap();
+                        req.metadata_mut().insert("authorization", token.clone());
+                        Ok(req)
+                    },
+                );
+                // let r = client.login(rpc::api::LoginRegisterRequest { username: "".to_string(), password: "".to_string() }).await;
+                // info!("r: {:?}", r);
+                // let client = rpc::api::api_rpc_client::ApiRpcClient::new(tonic::transport::Endpoint::new(addr).unwrap().connect().await.unwrap());
                 info!("got api client: {:?}", client);
                 tx.send(ApiClientConnect(client)).unwrap();
             });
         }
         #[cfg(target_arch = "wasm32")]
         {
-            let client = rpc::api::api_rpc_client::ApiRpcClient::new(tonic_web_wasm_client::Client::new(addr));
+            // let client = rpc::api::api_rpc_client::ApiRpcClient::new(tonic_web_wasm_client::Client::new(addr));
+            let inner = tonic_web_wasm_client::Client::new(addr);
+            let client: MainApiClient = rpc::api::api_rpc_client::ApiRpcClient::with_interceptor(
+                inner,
+                move |mut req: tonic::Request<()>| {
+                    let token: tonic::metadata::MetadataValue<_> = "token".parse().unwrap();
+                    req.metadata_mut().insert("authorization", token.clone());
+                    Ok(req)
+                },
+            );
             self.client = Some(client);
         }
         self
