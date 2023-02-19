@@ -2,13 +2,12 @@
 
 use egui::{Align2, Color32, FontId, Pos2, Ui, Vec2};
 use std::future::Future;
-use crate::financial_analysis::RT;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub fn execute<F: Future<Output=()> + Send + 'static>(f: F) {
     // this is stupid... use any executor of your choice instead
     // std::thread::spawn(move || futures::executor::block_on(f));
-    RT.spawn(f);
+    crate::financial_analysis::RT.spawn(f);
     // tokio::runtime::Builder::new_multi_thread()
     //     .enable_io()
     //     // .enable_time()
@@ -28,7 +27,7 @@ pub fn block_on<F: Future<Output=()>>(f: F) {
     //     .enable_io()
     //     // .enable_time()
     //     .build().unwrap().block_on(f);
-    RT.block_on(f);
+    crate::financial_analysis::RT.block_on(f);
 }
 
 #[cfg(target_arch = "wasm32")]

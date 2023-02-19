@@ -48,12 +48,12 @@ impl FinancialAnalysis {
                     }
                 }
                 if ui.button("注册").clicked() {
-                    block_on(self.register());
+                    block_on(Self::register());
                 }
             });
         });
     }
-    pub async fn register(&self) {
+    pub async fn register() {
         let addr = format!("http://127.0.0.1:{}", API_PORT);
         let res =
             match if cfg!(target_arch = "wasm32") {
@@ -61,16 +61,22 @@ impl FinancialAnalysis {
                 let mut client = rpc::api::register_client::RegisterClient::new(Client::new(addr));
                 client.register(LoginRegisterRequest { username: "".to_string(), password: "".to_string() }).await
             } else {
-                let mut client = rpc::api::register_client::RegisterClient::new(tonic::transport::Endpoint::new(addr).unwrap().connect().await.unwrap());
-                client.register(LoginRegisterRequest { username: "".to_string(), password: "".to_string() }).await
+                #[cfg(not(target_arch = "wasm32"))]
+                {
+                    let mut client = rpc::api::register_client::RegisterClient::new(tonic::transport::Endpoint::new(addr).unwrap().connect().await.unwrap());
+                    client.register(LoginRegisterRequest { username: "".to_string(), password: "".to_string() }).await
+                }
+                #[cfg(target_arch = "wasm32")]
+                {
+                    panic!("unsupported")
+                }
             } {
-                Ok(r) => r,
+                Ok(r) => r.into_inner(),
                 Err(e) => {
                     error!("{}", e);
-                    tonic::Response::new(ReasonResp { err: true, reason: e.to_string() })
+                    ReasonResp { err: true, reason: e.to_string() }
                 }
             };
-        let data = res.into_inner();
-        info!("register resp: {:?}", data);
+        info!("register resp: {:?}", res);
     }
 }

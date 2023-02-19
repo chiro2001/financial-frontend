@@ -686,6 +686,7 @@ dependencies = [
  "eframe",
  "egui",
  "futures",
+ "js-sys",
  "jsonwebtoken",
  "lazy_static",
  "once_cell",
@@ -698,6 +699,8 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "tracing-wasm",
+ "wasm-bindgen-futures",
+ "web-sys",
 ]
 
 [[package]]

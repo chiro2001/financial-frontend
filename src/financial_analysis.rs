@@ -10,6 +10,7 @@ use crate::message::Message::ApiClientConnect;
 use crate::service::Service;
 use std::sync::Arc;
 
+#[cfg(not(target_arch = "wasm32"))]
 lazy_static! {
     pub static ref RT: Arc<tokio::runtime::Runtime> = Arc::new(tokio::runtime::Builder::new_multi_thread()
     .enable_io().build().unwrap());
@@ -45,7 +46,6 @@ pub struct FinancialAnalysis {
     pub input_username: String,
     #[serde(skip)]
     pub input_password: String,
-    #[cfg(not(target_arch = "wasm32"))]
     #[serde(skip)]
     pub client: Option<MainApiClient>,
 }
