@@ -146,6 +146,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "async-trait"
+version = "0.1.64"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1cd7fce9ba8c3c042128ce72d8b2ddbf3a05747efb67ea0313c635e10bda47a2"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "atomic_refcell"
 version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -630,10 +641,10 @@ dependencies = [
  "futures",
  "jsonwebtoken",
  "once_cell",
+ "rpc",
  "rust-i18n",
  "serde",
  "tokio",
- "tonic-build",
  "tonic-web-wasm-client",
  "tracing",
  "tracing-subscriber",
@@ -1715,6 +1726,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "rpc"
+version = "0.1.0"
+dependencies = [
+ "prost",
+ "tonic",
+ "tonic-build",
+]
+
+[[package]]
 name = "rust-i18n"
 version = "1.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2190,6 +2210,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8f219fad3b929bef19b1f86fbc0358d35daed8f2cac972037ac0dc10bbb8d5fb"
 dependencies = [
  "async-stream",
+ "async-trait",
  "base64 0.13.1",
  "bytes",
  "futures-core",
@@ -2198,6 +2219,8 @@ dependencies = [
  "http-body",
  "percent-encoding",
  "pin-project",
+ "prost",
+ "prost-derive",
  "tokio-stream",
  "tokio-util",
  "tower-layer",

@@ -25,6 +25,7 @@ anyhow = "1.0.69"
 tracing = "0.1.37"
 futures = "0.3.26"
 tonic-web-wasm-client = "0.3.2"
+rpc = { path = "rpc" }
 
 # native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
@@ -42,9 +43,6 @@ tracing-wasm = "0.2"
 ##console_log = "0.2.0"
 #ws_stream_wasm = "0.7.3"
 #web-sys = "0.3.60"
-
-[build-dependencies]
-tonic-build = "0.8.4"
 
 [profile.release]
 opt-level = 2 # fast and small wasm

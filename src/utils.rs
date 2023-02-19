@@ -6,11 +6,11 @@ use std::future::Future;
 #[cfg(not(target_arch = "wasm32"))]
 pub fn execute<F: Future<Output=()> + Send + 'static>(f: F) {
     // this is stupid... use any executor of your choice instead
-    // std::thread::spawn(move || futures::executor::block_on(f));
-    tokio::runtime::Builder::new_multi_thread()
-        .enable_io()
-        // .enable_time()
-        .build().unwrap().spawn(f);
+    std::thread::spawn(move || futures::executor::block_on(f));
+    // tokio::runtime::Builder::new_multi_thread()
+    //     .enable_io()
+    //     // .enable_time()
+    //     .build().unwrap().spawn(f);
     // tokio::spawn(f);
 }
 
