@@ -1,14 +1,25 @@
 syntax = "proto3";
+
 import "google/protobuf/wrappers.proto";
 import "google/protobuf/empty.proto";
 
 package financial_analysis;
 
 service ApiRpc {
-    rpc Register(RegisterRequest) returns (google.protobuf.Empty) {}
+    rpc Ping (google.protobuf.Empty) returns (google.protobuf.Empty) {}
+    rpc Login (LoginRegisterRequest) returns (ReasonResp) {}
 }
 
-message RegisterRequest {
+service Register {
+    rpc Register (LoginRegisterRequest) returns (ReasonResp) {}
+}
+
+message LoginRegisterRequest {
     string username = 1;
     string password = 2;
 }
+
+message ReasonResp {
+    bool err = 1;
+    string reason = 2;
+};

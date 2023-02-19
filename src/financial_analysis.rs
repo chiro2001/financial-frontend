@@ -101,9 +101,9 @@ impl FinancialAnalysis {
         execute(async move {
             use tonic_web_wasm_client::Client;
             let base_url = format!("http://127.0.0.1:{}", 51411);
-            let query_client = rpc::api::api_rpc_client::ApiRpcClient::new(Client::new(base_url));
+            let client = rpc::api::api_rpc_client::ApiRpcClient::new(Client::new(base_url));
             // let response = query_client.register(RegisterRequest { username: "".to_string(), password: "".to_string() }).await;
-            tx.send(ApiClientConnect(query_client)).unwrap();
+            tx.send(ApiClientConnect(client)).unwrap();
         });
         self
     }
@@ -120,7 +120,6 @@ impl FinancialAnalysis {
 
 #[cfg(test)]
 mod test {
-    use rpc::api::RegisterRequest;
     use tracing::info;
 
     #[test]

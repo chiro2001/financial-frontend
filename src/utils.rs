@@ -19,6 +19,21 @@ pub fn execute<F: Future<Output=()> + 'static>(f: F) {
     wasm_bindgen_futures::spawn_local(f);
 }
 
+#[cfg(not(target_arch = "wasm32"))]
+pub fn block_on<F: Future<Output=()>>(f: F) {
+    // this is stupid... use any executor of your choice instead
+    tokio::runtime::Builder::new_multi_thread()
+        .enable_io()
+        // .enable_time()
+        .build().unwrap().block_on(f);
+}
+
+#[cfg(target_arch = "wasm32")]
+pub fn block_on<F: Future<Output=()> + 'static>(f: F) {
+    // not blocked really...
+    wasm_bindgen_futures::spawn_local(f);
+}
+
 pub async fn sleep_ms(mills: u64) {
     #[cfg(not(target_arch = "wasm32"))]
     std::thread::sleep(std::time::Duration::from_millis(mills));
