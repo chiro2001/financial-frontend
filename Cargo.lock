@@ -687,6 +687,7 @@ dependencies = [
  "egui",
  "futures",
  "jsonwebtoken",
+ "lazy_static",
  "once_cell",
  "rpc",
  "rust-i18n",

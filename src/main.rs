@@ -34,7 +34,7 @@ fn main() {
             web_options,
             Box::new(|cc| Box::new(FinancialAnalysis::new(cc))),
         )
-        .await
-        .expect("failed to start eframe");
+            .await
+            .expect("failed to start eframe");
     });
 }

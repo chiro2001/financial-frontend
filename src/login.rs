@@ -3,9 +3,9 @@ use crate::password::password;
 use egui::Window;
 use rpc::api::{LoginRegisterRequest, ReasonResp};
 use rpc::API_PORT;
-use tonic::{Response, Status};
 use tracing::{error, info};
-use crate::utils::block_on;
+use crate::message::Message::LoginDone;
+use crate::utils::{block_on, execute};
 
 impl FinancialAnalysis {
     pub fn login_window(&mut self, ctx: &egui::Context) {
@@ -23,19 +23,35 @@ impl FinancialAnalysis {
                 });
             ui.vertical_centered_justified(|ui| {
                 if ui.button("登录").clicked() {
-                    block_on(self.login());
+                    // block_on(self.login());
+                    if let Some(client) = &self.client {
+                        let mut client = client.clone();
+                        let tx = self.channel.as_ref().map(|x| x.tx.clone());
+                        execute(async move {
+                            info!("login, client: {:?}", client);
+                            let r = client.login(LoginRegisterRequest { username: "".to_string(), password: "".to_string() }).await;
+                            info!("login resp: {:?}", r);
+                            match r {
+                                Ok(r) => {
+                                    let data = r.into_inner();
+                                    if data.err {
+                                        error!("{}", data.reason);
+                                    } else {
+                                        if let Some(tx) = tx {
+                                            tx.send(LoginDone("".to_string())).unwrap();
+                                        }
+                                    }
+                                }
+                                Err(e) => error!("{}", e.to_string())
+                            }
+                        });
+                    }
                 }
                 if ui.button("注册").clicked() {
                     block_on(self.register());
                 }
             });
         });
-    }
-    pub async fn login(&self) {
-        if let Some(client) = &self.client {
-            let mut client = client.clone();
-            let _r = client.login(LoginRegisterRequest { username: "".to_string(), password: "".to_string() }).await;
-        }
     }
     pub async fn register(&self) {
         let addr = format!("http://127.0.0.1:{}", API_PORT);

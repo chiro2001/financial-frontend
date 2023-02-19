@@ -1,8 +1,10 @@
 use std::sync::mpsc;
+use crate::financial_analysis::{MainApiClient, Token};
 
 #[derive(Debug)]
 pub enum Message {
-    ApiClientConnect(rpc::api::api_rpc_client::ApiRpcClient<tonic_web_wasm_client::Client>),
+    ApiClientConnect(MainApiClient),
+    LoginDone(Token),
 }
 
 unsafe impl Send for Message {}

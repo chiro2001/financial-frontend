@@ -1,8 +1,10 @@
 use crate::message::{Channel, Message};
-use crate::utils::{execute, sleep_ms};
+use crate::utils::sleep_ms;
 use anyhow::Result;
 use std::sync::mpsc;
 use tracing::{debug, error, info};
+use crate::financial_analysis::RT;
+use crate::message::Message::LoginDone;
 
 pub struct Service {
     pub channel: Channel,
@@ -16,6 +18,7 @@ impl Service {
         info!("service handle msg: {:?}", msg);
         match msg {
             Message::ApiClientConnect(_) => {}
+            Message::LoginDone(m) => { self.channel.tx.send(LoginDone(m)).unwrap(); }
         }
         Ok(false)
     }
@@ -84,7 +87,8 @@ impl Service {
 
     pub fn start(channel: Channel) {
         debug!("starting service...");
-        execute(async move {
+        // execute(async move {
+        RT.spawn(async move {
             run_service(channel).await;
         });
         debug!("service started");
