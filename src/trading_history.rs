@@ -131,10 +131,8 @@ impl TradingHistoryView {
             (item.close, item.open, false)
         };
         painter.vline(rect.center_top().x, rect.y_range(), (LINE_WIDTH, ui.visuals().text_color()));
-        let height_rate_total = rect.height();
-        let height_open_close = height_rate_total * (b - a) / (item.high - item.low);
-        let y_top = rect.top() + (height_rate_total * (item.high - b));
-        let y_bottom = y_top + height_open_close;
+        let y_top = rect.top() + (rect.height() * (item.high - b) / (item.high - item.low));
+        let y_bottom = y_top + (rect.height() * (b - a) / (item.high - item.low));
         painter.rect_filled(Rect::from_x_y_ranges(rect.x_range(), RangeInclusive::new(y_top, y_bottom)), 0.0,
                             if increase { Color32::RED } else { Color32::GREEN });
     }
