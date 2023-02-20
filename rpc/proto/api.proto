@@ -9,6 +9,7 @@ service ApiRpc {
     rpc Ping (google.protobuf.Empty) returns (google.protobuf.Empty) {}
     rpc Login (LoginRegisterRequest) returns (LoginResp) {}
     rpc StockList (google.protobuf.Empty) returns (StockListResp) {}
+    rpc TradingHistory (TradingHistoryRequest) returns (TradingHistoryResp) {}
 }
 
 service Register {
@@ -40,4 +41,28 @@ message StockResp {
 
 message StockListResp {
     repeated StockResp data = 1;
+}
+
+enum TradingHistoryType {
+    TRADING_HISTORY_TYPE_DAILY = 0;
+    TRADING_HISTORY_TYPE_WEEK = 1;
+    TRADING_HISTORY_TYPE_MONTH = 2;
+}
+
+message TradingHistoryItem {
+    string date = 1;
+    string open = 2;
+    string close = 3;
+    string high = 4;
+    string low = 5;
+    string volume = 6;
+}
+
+message TradingHistoryRequest {
+    string symbol = 1;
+    TradingHistoryType typ = 2;
+}
+
+message TradingHistoryResp {
+    repeated TradingHistoryItem data = 1;
 }

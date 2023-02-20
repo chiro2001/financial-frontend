@@ -11,6 +11,7 @@ use crate::message::Message::ApiClientConnect;
 use crate::service::Service;
 use rpc::api::api_rpc_client::ApiRpcClient;
 use rpc::api::StockResp;
+use crate::trading_history::TradingHistoryView;
 
 #[cfg(not(target_arch = "wasm32"))]
 lazy_static! {
@@ -62,7 +63,9 @@ pub struct FinancialAnalysis {
     #[serde(skip)]
     pub stock_list_select_text: String,
 
-    pub search_text: String
+    pub search_text: String,
+    #[serde(skip)]
+    pub history_views: Vec<TradingHistoryView>,
 }
 
 impl Default for FinancialAnalysis {
@@ -84,6 +87,7 @@ impl Default for FinancialAnalysis {
             stock_list_select: vec![],
             stock_list_select_text: "".to_string(),
             search_text: "".to_string(),
+            history_views: vec![],
         }
     }
 }
@@ -191,6 +195,18 @@ impl FinancialAnalysis {
             Message::GotStockList(stock) => {
                 self.stock_list = stock.data;
                 self.stock_list_requesting = false;
+            }
+            Message::GotTradingHistory(d) => {
+                // dispatch messages
+                let mut target = None;
+                for view in &mut self.history_views {
+                    if view.stock.symbol == d.0 {
+                        target = Some(view);
+                    }
+                }
+                if let Some(target) = target {
+                    target.message_handler(Message::GotTradingHistory(d));
+                }
             }
         }
     }

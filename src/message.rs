@@ -1,5 +1,5 @@
 use std::sync::mpsc;
-use rpc::api::StockListResp;
+use rpc::api::{StockListResp, TradingHistoryItem};
 use crate::financial_analysis::{MainApiClient, Token};
 
 #[derive(Debug)]
@@ -7,6 +7,7 @@ pub enum Message {
     ApiClientConnect(MainApiClient),
     LoginDone(Token),
     GotStockList(StockListResp),
+    GotTradingHistory((String, Vec<TradingHistoryItem>, String)),
 }
 
 unsafe impl Send for Message {}

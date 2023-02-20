@@ -1,7 +1,7 @@
 use crate::constants::REPAINT_AFTER_SECONDS;
 use crate::financial_analysis::FinancialAnalysis;
 use crate::run_mode::RunMode;
-use egui::{CentralPanel, Direction, Label, Layout, RichText, SidePanel, TopBottomPanel, Window};
+use egui::{CentralPanel, Direction, Label, Layout, RichText, Sense, SidePanel, TopBottomPanel, Ui, Window};
 use egui_extras::{Column, TableBuilder};
 use num_traits::Float;
 use regex::Regex;
@@ -9,6 +9,7 @@ use rpc::api::StockListResp;
 use tonic::Request;
 use tracing::info;
 use crate::message::Message;
+use crate::trading_history::TradingHistoryView;
 use crate::utils::execute;
 
 impl eframe::App for FinancialAnalysis {
@@ -65,8 +66,9 @@ impl eframe::App for FinancialAnalysis {
                 self.debug_panel(ui);
             });
         }
+        let enabled = self.login_done && !self.token.is_empty();
         CentralPanel::default().show(ctx, |ui| {
-            ui.add_enabled_ui(self.login_done && !self.token.is_empty(), |ui| {
+            ui.add_enabled_ui(enabled, |ui| {
                 TopBottomPanel::top("search-result").show_inside(ui, |ui| {
                     ui.horizontal(|ui| {
                         ui.label("🔍搜索");
@@ -134,20 +136,29 @@ impl eframe::App for FinancialAnalysis {
                         .body(|body| {
                             body.heterogeneous_rows((0..self.stock_list_select.len()).map(|_| SIGNAL_HEIGHT_DEFAULT), |row_index, mut row| {
                                 if let Some(stock) = self.stock_list_select.get(row_index) {
-                                    row.col(|ui| {
-                                        ui.label(stock.code.to_string());
-                                    });
-                                    row.col(|ui| {
-                                        ui.label(stock.symbol.to_string());
-                                    });
-                                    row.col(|ui| {
-                                        ui.label(stock.name.to_string());
-                                    });
+                                    let mut r = None;
+                                    let mut add_label = |text: &str, ui: &mut Ui| {
+                                        let resp = ui.add(Label::new(text).sense(Sense::click()));
+                                        if resp.double_clicked() {
+                                            r = Some(resp);
+                                        }
+                                    };
+                                    row.col(|ui| add_label(stock.code.as_str(), ui));
+                                    row.col(|ui| add_label(stock.symbol.as_str(), ui));
+                                    row.col(|ui| add_label(stock.name.as_str(), ui));
+                                    if let Some(r) = r {
+                                        if r.double_clicked() {
+                                            if !self.history_views.iter().any(|x| x.stock.symbol == stock.symbol) {
+                                                self.history_views.push(TradingHistoryView::new(stock.clone(), self.client.clone(), self.loop_tx.clone()));
+                                            }
+                                        }
+                                    }
                                 }
                             });
                         });
                 });
             });
+            // ui.label(format!("windows: {}", self.history_views.len()));
         });
         if !self.login_done {
             if self.client.is_some() {
@@ -170,6 +181,13 @@ impl eframe::App for FinancialAnalysis {
                         ui.spinner();
                     });
                 });
+        }
+        // remove invalid windows inplace
+        self.history_views.retain(|x| x.valid);
+        if enabled {
+            for view in &mut self.history_views {
+                if view.valid { view.window(ctx); }
+            }
         }
     }
 
