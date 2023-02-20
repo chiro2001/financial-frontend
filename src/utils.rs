@@ -86,3 +86,16 @@ pub fn get_text_size(ui: &Ui, text: &str, font: FontId) -> Vec2 {
         )
         .size()
 }
+
+pub fn get_random_buf() -> Result<[u8; 4], getrandom::Error> {
+    let mut buf = [0u8; 4];
+    getrandom::getrandom(&mut buf)?;
+    Ok(buf)
+}
+
+pub fn get_random_u32() -> u32 {
+    u32::from_le_bytes(match get_random_buf() {
+        Ok(r) => r,
+        Err(_) => [0; 4],
+    })
+}

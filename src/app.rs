@@ -1,15 +1,12 @@
 use crate::constants::REPAINT_AFTER_SECONDS;
 use crate::financial_analysis::FinancialAnalysis;
 use crate::run_mode::RunMode;
-use egui::{CentralPanel, Direction, Label, Layout, RichText, Sense, SidePanel, TopBottomPanel, Ui, Window};
-use egui_extras::{Column, TableBuilder};
-use num_traits::Float;
+use egui::{CentralPanel, Label, RichText, SidePanel, TopBottomPanel, Window};
 use regex::Regex;
 use rpc::api::StockListResp;
 use tonic::Request;
 use tracing::info;
 use crate::message::Message;
-use crate::trading_history::TradingHistoryView;
 use crate::utils::execute;
 
 impl eframe::App for FinancialAnalysis {
@@ -109,53 +106,14 @@ impl eframe::App for FinancialAnalysis {
                     });
                 });
                 CentralPanel::default().show_inside(ui, |ui| {
-                    pub const SIGNAL_HEIGHT_DEFAULT: f32 = 30.0;
-                    let rect_max = ui.max_rect();
-                    let label_width = 64.0;
-                    let table = TableBuilder::new(ui)
-                        .striped(true)
+                    SidePanel::left("popular-stocks")
                         .resizable(false)
-                        // .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
-                        .cell_layout(Layout::centered_and_justified(Direction::TopDown))
-                        .column(Column::exact(label_width).resizable(false))
-                        .column(Column::exact(label_width).resizable(false))
-                        .column(Column::exact(rect_max.width() - label_width - label_width).resizable(false))
-                        .min_scrolled_height(0.0)
-                        .max_scroll_height(f32::infinity());
-                    table.header(SIGNAL_HEIGHT_DEFAULT, |mut header| {
-                        header.col(|ui| {
-                            ui.label("代码");
+                        .show_inside(ui, |ui| {
+                            self.stock_list_popular_view(ui);
                         });
-                        header.col(|ui| {
-                            ui.label("代号");
-                        });
-                        header.col(|ui| {
-                            ui.label("名称");
-                        });
-                    })
-                        .body(|body| {
-                            body.heterogeneous_rows((0..self.stock_list_select.len()).map(|_| SIGNAL_HEIGHT_DEFAULT), |row_index, mut row| {
-                                if let Some(stock) = self.stock_list_select.get(row_index) {
-                                    let mut r = None;
-                                    let mut add_label = |text: &str, ui: &mut Ui| {
-                                        let resp = ui.add(Label::new(text).sense(Sense::click()));
-                                        if resp.double_clicked() {
-                                            r = Some(resp);
-                                        }
-                                    };
-                                    row.col(|ui| add_label(stock.code.as_str(), ui));
-                                    row.col(|ui| add_label(stock.symbol.as_str(), ui));
-                                    row.col(|ui| add_label(stock.name.as_str(), ui));
-                                    if let Some(r) = r {
-                                        if r.double_clicked() {
-                                            if !self.history_views.iter().any(|x| x.stock.symbol == stock.symbol) {
-                                                self.history_views.push(TradingHistoryView::new(stock.clone(), self.client.clone(), self.loop_tx.clone()));
-                                            }
-                                        }
-                                    }
-                                }
-                            });
-                        });
+                    CentralPanel::default().show_inside(ui, |ui| {
+                        self.stock_list_select_view(ui);
+                    });
                 });
             });
             // ui.label(format!("windows: {}", self.history_views.len()));

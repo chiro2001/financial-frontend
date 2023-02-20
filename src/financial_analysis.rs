@@ -1,9 +1,11 @@
 use std::sync::mpsc;
 use crate::frame_history::FrameHistory;
 use crate::run_mode::RunMode;
-use egui::{FontData, FontDefinitions, FontFamily};
+use egui::{Direction, FontData, FontDefinitions, FontFamily, Label, Layout, Sense, Ui};
+use egui_extras::{Column, TableBuilder};
 #[cfg(not(target_arch = "wasm32"))]
 use lazy_static::lazy_static;
+use num_traits::Float;
 use rpc::API_PORT;
 use tracing::info;
 use crate::message::{Channel, Message};
@@ -12,6 +14,7 @@ use crate::service::Service;
 use rpc::api::api_rpc_client::ApiRpcClient;
 use rpc::api::StockResp;
 use crate::trading_history::TradingHistoryView;
+use crate::utils::get_random_u32;
 
 #[cfg(not(target_arch = "wasm32"))]
 lazy_static! {
@@ -66,6 +69,9 @@ pub struct FinancialAnalysis {
     pub search_text: String,
     #[serde(skip)]
     pub history_views: Vec<TradingHistoryView>,
+
+    #[serde(skip)]
+    pub stock_list_popular: Vec<StockResp>,
 }
 
 impl Default for FinancialAnalysis {
@@ -88,6 +94,7 @@ impl Default for FinancialAnalysis {
             stock_list_select_text: "".to_string(),
             search_text: "".to_string(),
             history_views: vec![],
+            stock_list_popular: vec![],
         }
     }
 }
@@ -195,6 +202,15 @@ impl FinancialAnalysis {
             Message::GotStockList(stock) => {
                 self.stock_list = stock.data;
                 self.stock_list_requesting = false;
+                // randomly select some stocks to popular
+                if self.stock_list.len() > 0 {
+                    let n = 6;
+                    let mut data = vec![];
+                    for _ in 0..n {
+                        data.push(self.stock_list.get(get_random_u32() as usize % self.stock_list.len()).unwrap().clone());
+                    }
+                    self.stock_list_popular = data;
+                }
             }
             Message::GotTradingHistory(d) => {
                 // dispatch messages
@@ -220,7 +236,79 @@ impl FinancialAnalysis {
                     target.message_handler(Message::GotPredicts(d));
                 }
             }
-
+        }
+    }
+    pub fn stock_list(&self, ui: &mut Ui, data: &Vec<StockResp>, on_click: impl FnOnce(StockResp), expand: bool) {
+        pub const SIGNAL_HEIGHT_DEFAULT: f32 = 30.0;
+        let rect_max = ui.max_rect();
+        let label_width = 64.0;
+        let mut set_stock = None;
+        let table = TableBuilder::new(ui)
+            .striped(true)
+            .resizable(false)
+            // .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
+            .cell_layout(Layout::centered_and_justified(Direction::TopDown))
+            .column(Column::exact(label_width).resizable(false))
+            .column(Column::exact(label_width).resizable(false))
+            .column(Column::exact(if expand { rect_max.width() - label_width - label_width } else { label_width }).resizable(false))
+            .min_scrolled_height(0.0)
+            .max_scroll_height(f32::infinity());
+        table.header(SIGNAL_HEIGHT_DEFAULT, |mut header| {
+            header.col(|ui| {
+                ui.label("代码");
+            });
+            header.col(|ui| {
+                ui.label("代号");
+            });
+            header.col(|ui| {
+                ui.label("名称");
+            });
+        })
+            .body(|body| {
+                body.heterogeneous_rows((0..data.len()).map(|_| SIGNAL_HEIGHT_DEFAULT), |row_index, mut row| {
+                    if let Some(stock) = data.get(row_index) {
+                        let mut r = None;
+                        let mut add_label = |text: &str, ui: &mut Ui| {
+                            let resp = ui.add(Label::new(text).sense(Sense::click()));
+                            if resp.double_clicked() {
+                                r = Some(resp);
+                            }
+                        };
+                        row.col(|ui| add_label(stock.code.as_str(), ui));
+                        row.col(|ui| add_label(stock.symbol.as_str(), ui));
+                        row.col(|ui| add_label(stock.name.as_str(), ui));
+                        if let Some(r) = r {
+                            if r.double_clicked() {
+                                if !self.history_views.iter().any(|x| x.stock.symbol == stock.symbol) {
+                                    set_stock = Some(stock.clone());
+                                    // self.history_views.push(TradingHistoryView::new(stock.clone(), self.client.clone(), self.loop_tx.clone()));
+                                }
+                            }
+                        }
+                    }
+                });
+            });
+        if let Some(stock) = set_stock {
+            on_click(stock);
+        }
+    }
+    pub fn stock_list_select_view(&mut self, ui: &mut Ui) {
+        let mut set_stock = None;
+        self.stock_list(ui, &self.stock_list_select, |stock| {
+            set_stock = Some(stock);
+        }, true);
+        if let Some(stock) = set_stock {
+            self.history_views.push(TradingHistoryView::new(stock, self.client.clone(), self.loop_tx.clone()));
+        }
+    }
+    pub fn stock_list_popular_view(&mut self, ui: &mut Ui) {
+        ui.set_max_width(64.0 * 4.0);
+        let mut set_stock = None;
+        self.stock_list(ui, &self.stock_list_popular, |stock| {
+            set_stock = Some(stock);
+        }, false);
+        if let Some(stock) = set_stock {
+            self.history_views.push(TradingHistoryView::new(stock, self.client.clone(), self.loop_tx.clone()));
         }
     }
 }
