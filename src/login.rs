@@ -38,7 +38,7 @@ impl FinancialAnalysis {
                                         error!("{}", data.reason);
                                     } else {
                                         if let Some(tx) = tx {
-                                            tx.send(LoginDone("".to_string())).unwrap();
+                                            tx.send(LoginDone(data.token)).unwrap();
                                         }
                                     }
                                 }

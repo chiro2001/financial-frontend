@@ -1,7 +1,7 @@
 use crate::constants::REPAINT_AFTER_SECONDS;
 use crate::financial_analysis::FinancialAnalysis;
 use crate::run_mode::RunMode;
-use egui::{CentralPanel, SidePanel, TopBottomPanel};
+use egui::{CentralPanel, SidePanel, TopBottomPanel, Window};
 
 impl eframe::App for FinancialAnalysis {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
@@ -42,12 +42,20 @@ impl eframe::App for FinancialAnalysis {
             });
         }
         CentralPanel::default().show(ctx, |ui| {
-            ui.add_enabled_ui(self.login_done, |ui| {
+            ui.add_enabled_ui(self.login_done && !self.token.is_empty(), |ui| {
                 ui.label("主界面");
             });
         });
         if !self.login_done {
-            self.login_window(ctx);
+            if self.client.is_some() {
+                self.login_window(ctx);
+            } else {
+                Window::new("连接中...")
+                    .show(ctx, |ui| {
+                        ui.label("正在连接后端...");
+                        ui.spinner();
+                    });
+            }
         }
     }
 

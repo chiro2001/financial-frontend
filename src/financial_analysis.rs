@@ -120,8 +120,8 @@ impl FinancialAnalysis {
                 info!("preparing main api client...");
                 // let client = rpc::api::api_rpc_client::ApiRpcClient::new(tonic::transport::Endpoint::new(addr).unwrap().connect().await.unwrap());
                 let client: MainApiClient = rpc::api::api_rpc_client::ApiRpcClient::with_interceptor(
-                    // tonic::transport::Endpoint::new(addr).unwrap().connect().await.unwrap(),
-                    tonic::transport::Channel::from_static("http://127.0.0.1:51411").connect().await.unwrap(),
+                    tonic::transport::Endpoint::new(addr).unwrap().connect().await.unwrap(),
+                    // tonic::transport::Channel::from_static("http://127.0.0.1:51411").connect().await.unwrap(),
                     move |mut req: tonic::Request<()>| {
                         let token: tonic::metadata::MetadataValue<_> = "token".parse().unwrap();
                         req.metadata_mut().insert("authorization", token.clone());
@@ -149,6 +149,10 @@ impl FinancialAnalysis {
             );
             info!("got api client: {:?}", client);
             self.client = Some(client);
+        }
+        // TODO: dynamic check token
+        if !self.token.is_empty() {
+            self.login_done = true;
         }
         self
     }
