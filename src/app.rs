@@ -109,6 +109,7 @@ impl eframe::App for FinancialAnalysis {
                     SidePanel::left("popular-stocks")
                         .resizable(false)
                         .show_inside(ui, |ui| {
+                            ui.heading("热门股票");
                             self.stock_list_popular_view(ui);
                         });
                     CentralPanel::default().show_inside(ui, |ui| {

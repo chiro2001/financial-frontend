@@ -11,6 +11,7 @@ service ApiRpc {
     rpc StockList (google.protobuf.Empty) returns (StockListResp) {}
     rpc TradingHistory (TradingHistoryRequest) returns (TradingHistoryResp) {}
     rpc PredictData (PredictRequest) returns (PredictResp) {}
+    rpc StockIssue (StockIssueRequest) returns (StockIssueResp) {}
 }
 
 service Register {
@@ -75,4 +76,28 @@ message PredictRequest {
 
 message PredictResp {
     repeated float data = 1;
+}
+
+message StockIssueRequest {
+    string symbol = 1;
+}
+
+message StockIssueResp {
+    string market = 1;
+    string consignee = 2;
+    string underwriting = 3;
+    string sponsor = 4;
+    string issue_price = 5;
+    string issue_mode = 6;
+    string issue_pe = 7;
+    string pre_capital = 8;
+    string capital = 9;
+    string issue_volume = 10;
+    string expected_fundraising = 11;
+    string fundraising = 12;
+    string issue_cost = 13;
+    string net_amount_raised = 14;
+    string underwriting_fee = 15;
+    string announcement_date = 16;
+    string launch_date = 17;
 }

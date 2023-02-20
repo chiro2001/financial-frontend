@@ -11,7 +11,8 @@ pub mod run_mode;
 pub mod utils;
 pub mod message;
 pub mod service;
-pub mod trading_history;
+pub mod stock_view;
+pub mod issue;
 
 #[macro_use]
 extern crate rust_i18n;

@@ -13,7 +13,7 @@ use crate::message::Message::ApiClientConnect;
 use crate::service::Service;
 use rpc::api::api_rpc_client::ApiRpcClient;
 use rpc::api::StockResp;
-use crate::trading_history::TradingHistoryView;
+use crate::stock_view::StockView;
 use crate::utils::get_random_u32;
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -68,7 +68,7 @@ pub struct FinancialAnalysis {
 
     pub search_text: String,
     #[serde(skip)]
-    pub history_views: Vec<TradingHistoryView>,
+    pub history_views: Vec<StockView>,
 
     #[serde(skip)]
     pub stock_list_popular: Vec<StockResp>,
@@ -236,6 +236,18 @@ impl FinancialAnalysis {
                     target.message_handler(Message::GotPredicts(d));
                 }
             }
+            Message::GotStockIssue(d) => {
+                // dispatch messages
+                let mut target = None;
+                for view in &mut self.history_views {
+                    if view.stock.symbol == d.0 {
+                        target = Some(view);
+                    }
+                }
+                if let Some(target) = target {
+                    target.message_handler(Message::GotStockIssue(d));
+                }
+            }
         }
     }
     pub fn stock_list(&self, ui: &mut Ui, data: &Vec<StockResp>, on_click: impl FnOnce(StockResp), expand: bool) {
@@ -298,7 +310,7 @@ impl FinancialAnalysis {
             set_stock = Some(stock);
         }, true);
         if let Some(stock) = set_stock {
-            self.history_views.push(TradingHistoryView::new(stock, self.client.clone(), self.loop_tx.clone()));
+            self.history_views.push(StockView::new(stock, self.client.clone(), self.loop_tx.clone()));
         }
     }
     pub fn stock_list_popular_view(&mut self, ui: &mut Ui) {
@@ -308,7 +320,7 @@ impl FinancialAnalysis {
             set_stock = Some(stock);
         }, false);
         if let Some(stock) = set_stock {
-            self.history_views.push(TradingHistoryView::new(stock, self.client.clone(), self.loop_tx.clone()));
+            self.history_views.push(StockView::new(stock, self.client.clone(), self.loop_tx.clone()));
         }
     }
 }
