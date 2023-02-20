@@ -1,6 +1,6 @@
 use std::ops::RangeInclusive;
 use std::sync::mpsc;
-use egui::{Align2, Color32, FontId, Label, Painter, pos2, Rect, RichText, Sense, Ui, vec2, Window};
+use egui::{Align2, Color32, ComboBox, FontId, Label, Painter, pos2, Rect, RichText, Sense, Ui, vec2, Window};
 use rpc::api::{StockResp, TradingHistoryItem, TradingHistoryRequest, TradingHistoryType};
 use tracing::{error, info};
 use crate::constants::LINE_WIDTH;
@@ -103,6 +103,26 @@ impl TradingHistoryView {
                         ui.label("正在加载...");
                     });
                 } else {
+                    let type_last = self.typ.clone();
+                    ComboBox::new(format!("{}-combo-box", self.stock.symbol), "数据单位")
+                        .selected_text(match self.typ {
+                            TradingHistoryType::Daily => "日线",
+                            TradingHistoryType::Week => "周线",
+                            TradingHistoryType::Month => "月线",
+                        })
+                        .show_ui(ui, |ui| {
+                            ui.style_mut().wrap = Some(false);
+                            ui.set_min_width(60.0);
+                            ui.selectable_value(&mut self.typ, TradingHistoryType::Daily, "日线");
+                            ui.selectable_value(&mut self.typ, TradingHistoryType::Week, "周线");
+                            ui.selectable_value(&mut self.typ, TradingHistoryType::Month, "月线");
+                        });
+                    if type_last != self.typ {
+                        // change request option, reload
+                        self.requesting = false;
+                        self.error.clear();
+                        self.data.clear();
+                    }
                     if self.data.is_empty() {
                         ui.centered_and_justified(|ui| {
                             if self.error.is_empty() {

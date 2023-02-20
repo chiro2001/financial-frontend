@@ -10,6 +10,7 @@ service ApiRpc {
     rpc Login (LoginRegisterRequest) returns (LoginResp) {}
     rpc StockList (google.protobuf.Empty) returns (StockListResp) {}
     rpc TradingHistory (TradingHistoryRequest) returns (TradingHistoryResp) {}
+    rpc PredictData (PredictRequest) returns (PredictResp) {}
 }
 
 service Register {
@@ -65,4 +66,13 @@ message TradingHistoryRequest {
 
 message TradingHistoryResp {
     repeated TradingHistoryItem data = 1;
+}
+
+message PredictRequest {
+    repeated float data = 1;
+    uint32 length = 2;
+}
+
+message PredictResp {
+    repeated float data = 1;
 }
