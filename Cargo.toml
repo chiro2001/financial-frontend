@@ -28,6 +28,9 @@ rpc = { path = "rpc" }
 #tonic-web-wasm-client = "0.3.2"
 tonic-web-wasm-client = { path = "tonic-web-wasm-client" }
 lazy_static = "1.4.0"
+egui_extras = "0.21.0"
+num-traits = "0.2.15"
+regex = "1.7.1"
 
 # native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]

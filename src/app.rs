@@ -1,7 +1,10 @@
 use crate::constants::REPAINT_AFTER_SECONDS;
 use crate::financial_analysis::FinancialAnalysis;
 use crate::run_mode::RunMode;
-use egui::{CentralPanel, SidePanel, TopBottomPanel, Window};
+use egui::{CentralPanel, Direction, Layout, SidePanel, TopBottomPanel, Window};
+use egui_extras::{Column, TableBuilder};
+use num_traits::Float;
+use regex::Regex;
 use rpc::api::StockListResp;
 use tonic::Request;
 use tracing::info;
@@ -64,8 +67,81 @@ impl eframe::App for FinancialAnalysis {
         }
         CentralPanel::default().show(ctx, |ui| {
             ui.add_enabled_ui(self.login_done && !self.token.is_empty(), |ui| {
-                ui.label("主界面");
-                ui.label(format!("stocks: {}, requesting: {}", self.stock_list.len(), self.stock_list_requesting));
+                // ui.label("主界面");
+                // ui.label(format!("stocks: {}, requesting: {}", self.stock_list.len(), self.stock_list_requesting));
+                TopBottomPanel::top("search-result").show_inside(ui, |ui| {
+                    // ui.centered_and_justified(|ui| {
+                    //     ui.vertical_centered_justified(|ui| {
+                    //         ui.with_layout(Layout::right_to_left(Align::Center).with_main_justify(true), |ui| {
+                    // ui.with_layout(Layout::left_to_right(Align::Min), |ui| {
+                    ui.horizontal(|ui| {
+                        ui.label("🔍搜索");
+                        ui.text_edit_singleline(&mut self.search_text);
+                    });
+                    //         });
+                    //     });
+                    // });
+                });
+                let filter =
+                    if let Ok(re) = Regex::new(self.search_text.as_str()) {
+                        let re = re.clone();
+                        Some(move |text: &str| {
+                            re.is_match(text)
+                        })
+                    } else { None };
+                let stock_list_select = self.stock_list.iter().filter(|s| {
+                    if let Some(filter) = &filter {
+                        filter(&s.code) ||
+                            filter(&s.symbol) ||
+                            filter(&s.name)
+                    } else {
+                        let filter = |text: &str| self.search_text.contains(text);
+                        filter(&s.code) ||
+                            filter(&s.symbol) ||
+                            filter(&s.name)
+                    }
+                });
+                CentralPanel::default().show_inside(ui, |ui| {
+                    pub const SIGNAL_HEIGHT_DEFAULT: f32 = 30.0;
+                    let rect_max = ui.max_rect();
+                    let label_width = 64.0;
+                    let table = TableBuilder::new(ui)
+                        .striped(true)
+                        .resizable(false)
+                        // .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
+                        .cell_layout(Layout::centered_and_justified(Direction::TopDown))
+                        .column(Column::exact(label_width).resizable(false))
+                        .column(Column::exact(label_width).resizable(false))
+                        .column(Column::exact(rect_max.width() - label_width - label_width).resizable(false))
+                        .min_scrolled_height(0.0)
+                        .max_scroll_height(f32::infinity());
+                    table.header(SIGNAL_HEIGHT_DEFAULT, |mut header| {
+                        header.col(|ui| {
+                            ui.label("代码");
+                        });
+                        header.col(|ui| {
+                            ui.label("代号");
+                        });
+                        header.col(|ui| {
+                            ui.label("名称");
+                        });
+                    })
+                        .body(|mut body| {
+                            for stock in stock_list_select {
+                                body.row(SIGNAL_HEIGHT_DEFAULT, |mut row| {
+                                    row.col(|ui| {
+                                        ui.label(stock.code.to_string());
+                                    });
+                                    row.col(|ui| {
+                                        ui.label(stock.symbol.to_string());
+                                    });
+                                    row.col(|ui| {
+                                        ui.label(stock.name.to_string());
+                                    });
+                                });
+                            }
+                        });
+                });
             });
         });
         if !self.login_done {
