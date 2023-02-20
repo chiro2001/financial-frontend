@@ -141,7 +141,7 @@ impl TradingHistoryView {
         let len_data = self.data.len();
         if len_data == 0 { return; }
         let width = rect_max.width() / len_data as f32;
-        let (_response, painter) = ui.allocate_painter(ui.available_size(), Sense::hover());
+        let (response, painter) = ui.allocate_painter(ui.available_size(), Sense::hover());
         let value_max = self.data.iter().map(|x| x.high).reduce(|a, b| if a > b { a } else { b }).unwrap_or(1.0);
         let value_min = self.data.iter().map(|x| x.low).reduce(|a, b| if a < b { a } else { b }).unwrap_or(0.0);
         let value_range = value_max - value_min;
@@ -149,10 +149,16 @@ impl TradingHistoryView {
         for i in 0..len_data {
             let item = self.data.get(i).unwrap();
             let p = i as f32;
+            let range_x = RangeInclusive::new(rect_max.left() + p * width, rect_max.left() + (p + 1.0) * width);
             let rect = Rect::from_x_y_ranges(
-                RangeInclusive::new(rect_max.left() + p * width, rect_max.left() + (p + 1.0) * width),
+                range_x.clone(),
                 RangeInclusive::new(rect_max.top() + height * (value_max - item.high) / value_range, rect_max.top() + height * (value_max - item.low) / value_range));
             Self::paint_item(rect, ui, &painter, item);
+            if let Some(pos) = response.hover_pos() {
+                if range_x.contains(&pos.x) {
+                    painter.text(pos, Align2::RIGHT_BOTTOM, item.date.as_str(), Default::default(), ui.visuals().strong_text_color());
+                }
+            }
         }
     }
     pub fn message_handler(&mut self, msg: Message) {
