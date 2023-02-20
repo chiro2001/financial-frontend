@@ -1,6 +1,6 @@
 use std::ops::RangeInclusive;
 use std::sync::mpsc;
-use egui::{Align2, Color32, FontId, Label, Painter, Rect, RichText, Sense, Ui, vec2, Window};
+use egui::{Align2, Color32, FontId, Label, Painter, pos2, Rect, RichText, Sense, Ui, vec2, Window};
 use rpc::api::{StockResp, TradingHistoryItem, TradingHistoryRequest, TradingHistoryType};
 use tracing::{error, info};
 use crate::constants::LINE_WIDTH;
@@ -137,31 +137,50 @@ impl TradingHistoryView {
                             if increase { Color32::RED } else { Color32::GREEN });
     }
     fn paint_data(&self, ui: &mut Ui) {
-        let rect_max = ui.max_rect();
         let len_data = self.data.len();
         if len_data == 0 { return; }
-        let width = rect_max.width() / len_data as f32;
+        let font: FontId = Default::default();
+        let text_height = get_text_size(ui, "T", font.clone()).y;
+        let rect_max = ui.available_rect_before_wrap();
+        let rect_data_max = Rect::from_x_y_ranges(rect_max.x_range(), RangeInclusive::new(rect_max.top(), rect_max.bottom() - text_height));
+        let width = rect_data_max.width() / len_data as f32;
         let (response, painter) = ui.allocate_painter(ui.available_size(), Sense::hover());
         let value_max = self.data.iter().map(|x| x.high).reduce(|a, b| if a > b { a } else { b }).unwrap_or(1.0);
         let value_min = self.data.iter().map(|x| x.low).reduce(|a, b| if a < b { a } else { b }).unwrap_or(0.0);
         let value_range = value_max - value_min;
-        let height = rect_max.height();
+        let height = rect_data_max.height();
+        let mut last_date_rect: Option<Rect> = None;
         for i in 0..len_data {
             let item = self.data.get(i).unwrap();
             let p = i as f32;
-            let range_x = RangeInclusive::new(rect_max.left() + p * width, rect_max.left() + (p + 1.0) * width);
+            let range_x = RangeInclusive::new(rect_data_max.left() + p * width, rect_data_max.left() + (p + 1.0) * width);
             let rect = Rect::from_x_y_ranges(
                 range_x.clone(),
-                RangeInclusive::new(rect_max.top() + height * (value_max - item.high) / value_range, rect_max.top() + height * (value_max - item.low) / value_range));
+                RangeInclusive::new(rect_data_max.top() + height * (value_max - item.high) / value_range, rect_data_max.top() + height * (value_max - item.low) / value_range));
             Self::paint_item(rect, ui, &painter, item);
             if let Some(pos) = response.hover_pos() {
                 if range_x.contains(&pos.x) {
-                    let font: FontId = Default::default();
-                    let text_height = get_text_size(ui, "T", font.clone()).y;
                     painter.text(pos, Align2::RIGHT_BOTTOM, item.date.as_str(), font.clone(), ui.visuals().strong_text_color());
                     painter.text(pos - vec2(0.0, text_height * 1.0), Align2::RIGHT_BOTTOM, format!("收盘{}", item.close), font.clone(), ui.visuals().strong_text_color());
                     painter.text(pos - vec2(0.0, text_height * 2.0), Align2::RIGHT_BOTTOM, format!("开盘{}", item.open), font.clone(), ui.visuals().strong_text_color());
                 }
+            }
+            let paint_date = |color: Color32|
+                painter.text(
+                    pos2(rect.center_bottom().x, rect_data_max.bottom()),
+                    Align2::CENTER_TOP,
+                    format!("  {}  ", item.date),
+                    font.clone(), color);
+            let date_rect = paint_date(Color32::TRANSPARENT);
+            let real_paint =
+                if let Some(last_date_rect) = last_date_rect {
+                    !last_date_rect.intersects(date_rect)
+                } else {
+                    true
+                };
+            if real_paint {
+                paint_date(ui.visuals().text_color());
+                last_date_rect = Some(date_rect);
             }
         }
     }
