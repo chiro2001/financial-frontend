@@ -1,5 +1,5 @@
 use std::sync::mpsc;
-use egui::Window;
+use egui::{Label, RichText, Window};
 use rpc::api::{StockResp, TradingHistoryItem, TradingHistoryRequest, TradingHistoryType};
 use tracing::{error, info};
 use crate::financial_analysis::MainApiClient;
@@ -72,7 +72,11 @@ impl TradingHistoryView {
                 } else {
                     if self.data.is_empty() {
                         ui.centered_and_justified(|ui| {
-                            ui.label(format!("无数据 | {}", self.error));
+                            if self.error.is_empty() {
+                                ui.label("无数据");
+                            } else {
+                                ui.add(Label::new(RichText::new(format!("错误: {}", self.error)).color(ui.visuals().warn_fg_color)));
+                            }
                         });
                     } else {
                         ui.label(format!("{:?}", self.stock));

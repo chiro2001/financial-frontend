@@ -73,8 +73,8 @@ impl eframe::App for FinancialAnalysis {
                     ui.horizontal(|ui| {
                         ui.label("🔍搜索");
                         let re = Regex::new(self.search_text.as_str());
-                        if ui.text_edit_singleline(&mut self.search_text).changed() || self.search_text != self.stock_list_select_text
-                            || (self.stock_list_select_text.is_empty() && !self.stock_list.is_empty() && self.stock_list_select.is_empty()) {
+                        if !self.stock_list.is_empty() && (ui.text_edit_singleline(&mut self.search_text).changed() || self.search_text != self.stock_list_select_text
+                            || (self.stock_list_select_text.is_empty() && self.search_text != self.stock_list_select_text)) {
                             let filter =
                                 if let Ok(re) = re.clone() {
                                     let re = re.clone();
