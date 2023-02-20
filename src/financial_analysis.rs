@@ -216,9 +216,7 @@ impl FinancialAnalysis {
 #[cfg(test)]
 mod test {
     use rpc::api::LoginRegisterRequest;
-    use rpc::api::register_client::RegisterClient;
     use rpc::API_PORT;
-    use tonic::transport::Channel;
     use tracing::info;
     use crate::financial_analysis::RegisterApiClient;
 

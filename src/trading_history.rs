@@ -1,14 +1,45 @@
+use std::ops::RangeInclusive;
 use std::sync::mpsc;
-use egui::{Label, RichText, Window};
+use egui::{Align2, Color32, Label, Painter, Rect, RichText, Sense, Ui, Window};
 use rpc::api::{StockResp, TradingHistoryItem, TradingHistoryRequest, TradingHistoryType};
 use tracing::{error, info};
+use crate::constants::LINE_WIDTH;
 use crate::financial_analysis::MainApiClient;
 use crate::message::Message;
 use crate::utils::execute;
 
+pub struct TradingHistoryValueItem {
+    pub date: String,
+    pub open: f32,
+    pub close: f32,
+    pub high: f32,
+    pub low: f32,
+    pub volume: usize,
+}
+
+impl From<TradingHistoryItem> for TradingHistoryValueItem {
+    fn from(value: TradingHistoryItem) -> Self {
+        Self {
+            date: value.date,
+            open: value.open.parse().unwrap_or(-1.0),
+            close: value.close.parse().unwrap_or(-1.0),
+            high: value.high.parse().unwrap_or(-1.0),
+            low: value.low.parse().unwrap_or(-1.0),
+            volume: value.volume.parse().unwrap_or(0),
+        }
+    }
+}
+
+impl TradingHistoryValueItem {
+    pub fn valid(&self) -> bool {
+        self.volume != 0 && self.low > 0.0 && self.open > 0.0 && self.close > 0.0 && self.high > 0.0
+            && self.high >= self.low
+    }
+}
+
 pub struct TradingHistoryView {
     pub stock: StockResp,
-    pub data: Vec<TradingHistoryItem>,
+    pub data: Vec<TradingHistoryValueItem>,
     pub client: Option<MainApiClient>,
     pub tx: Option<mpsc::Sender<Message>>,
     requesting: bool,
@@ -60,10 +91,12 @@ impl TradingHistoryView {
                 }
             });
         }
+        let mut valid = self.valid;
         Window::new(format!("[{}]{}", self.stock.code, self.stock.name))
-            .open(&mut self.valid)
+            .open(&mut valid)
             .show(ctx, |ui| {
-                ui.set_min_width(480.0);
+                ui.set_min_width(32.0);
+                ui.set_min_height(64.0);
                 if self.requesting {
                     ui.horizontal(|ui| {
                         ui.spinner();
@@ -79,16 +112,56 @@ impl TradingHistoryView {
                             }
                         });
                     } else {
-                        ui.label(format!("{:?}", self.stock));
+                        // ui.label(format!("{:?}", self.stock));
+                        self.paint_data(ui);
                     }
                 }
             });
+        self.valid = valid;
+    }
+    fn paint_item(rect: Rect, ui: &Ui, painter: &Painter, item: &TradingHistoryValueItem) {
+        if !item.valid() {
+            painter.text(rect.center(), Align2::CENTER_CENTER, "无效数据", Default::default(), ui.visuals().text_color());
+            return;
+        }
+        // a <= b
+        let (a, b, increase) = if item.open <= item.close {
+            (item.open, item.close, true)
+        } else {
+            (item.close, item.open, false)
+        };
+        painter.vline(rect.center_top().x, rect.y_range(), (LINE_WIDTH, ui.visuals().text_color()));
+        let height_rate_total = rect.height();
+        let height_open_close = height_rate_total * (b - a) / (item.high - item.low);
+        let y_top = rect.top() + (height_rate_total * (item.high - b));
+        let y_bottom = y_top + height_open_close;
+        painter.rect_filled(Rect::from_x_y_ranges(rect.x_range(), RangeInclusive::new(y_top, y_bottom)), 0.0,
+                            if increase { Color32::RED } else { Color32::GREEN });
+    }
+    fn paint_data(&self, ui: &mut Ui) {
+        let rect_max = ui.max_rect();
+        let len_data = self.data.len();
+        if len_data == 0 { return; }
+        let width = rect_max.width() / len_data as f32;
+        let (_response, painter) = ui.allocate_painter(ui.available_size(), Sense::hover());
+        let value_max = self.data.iter().map(|x| x.high).reduce(|a, b| if a > b { a } else { b }).unwrap_or(1.0);
+        let value_min = self.data.iter().map(|x| x.low).reduce(|a, b| if a < b { a } else { b }).unwrap_or(0.0);
+        let value_range = value_max - value_min;
+        let height = rect_max.height();
+        for i in 0..len_data {
+            let item = self.data.get(i).unwrap();
+            let p = i as f32;
+            let rect = Rect::from_x_y_ranges(
+                RangeInclusive::new(rect_max.left() + p * width, rect_max.left() + (p + 1.0) * width),
+                RangeInclusive::new(rect_max.top() + height * (value_max - item.high) / value_range, rect_max.top() + height * (value_max - item.low) / value_range));
+            Self::paint_item(rect, ui, &painter, item);
+        }
     }
     pub fn message_handler(&mut self, msg: Message) {
         match msg {
             Message::GotTradingHistory((symbol, data, error)) => {
                 if symbol == self.stock.symbol {
-                    self.data = data;
+                    self.data = data.into_iter().map(|x| x.into()).collect();
                     self.requesting = false;
                     self.error = error;
                 }
