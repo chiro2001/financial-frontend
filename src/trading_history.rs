@@ -1,3 +1,4 @@
+use std::cmp::min;
 use std::ops::RangeInclusive;
 use std::sync::mpsc;
 use egui::{Align2, Color32, ComboBox, DragValue, FontId, Label, Painter, pos2, Rect, RichText, Sense, Ui, vec2, Widget, Window};
@@ -45,6 +46,13 @@ impl TradingHistoryValueItem {
             low: 0.0,
             volume: 0,
         }
+    }
+    pub fn force_valid(&mut self) {
+        if self.volume == 0 {
+            self.volume = 1;
+        }
+        self.low = f32::min(f32::min(self.high, self.open), self.close);
+        self.high = f32::max(f32::max(self.low, self.open), self.close);
     }
 }
 
@@ -239,8 +247,8 @@ impl TradingHistoryView {
             });
         self.valid = valid;
     }
-    fn paint_item(rect: Rect, ui: &Ui, painter: &Painter, item: &TradingHistoryValueItem) {
-        if !item.valid() {
+    fn paint_item(rect: Rect, ui: &Ui, painter: &Painter, item: &TradingHistoryValueItem, allow_invalid: bool) {
+        if !item.valid() && !allow_invalid {
             painter.text(rect.center(), Align2::CENTER_CENTER, "无效数据", Default::default(), ui.visuals().text_color());
             return;
         }
@@ -256,7 +264,7 @@ impl TradingHistoryView {
         painter.rect_filled(Rect::from_x_y_ranges(rect.x_range(), RangeInclusive::new(y_top, y_bottom)), 0.0,
                             if increase { Color32::RED } else { Color32::GREEN });
     }
-    fn paint_data(&self, ui: &mut Ui) {
+    fn paint_data(&mut self, ui: &mut Ui) {
         let len_data = self.data.len() + self.predicts.len();
         if len_data == 0 { return; }
         let font: FontId = Default::default();
@@ -271,9 +279,9 @@ impl TradingHistoryView {
         let height = rect_data_max.height();
         let mut last_date_rect: Option<Rect> = None;
         for i in 0..len_data {
-            let item = self.data.get(i);
+            let item = self.data.get_mut(i);
             let item = if item.is_none() {
-                self.predicts.get(i - self.data.len())
+                self.predicts.get_mut(i - self.data.len())
             } else {
                 item
             };
@@ -281,12 +289,13 @@ impl TradingHistoryView {
                 continue;
             }
             let item = item.unwrap();
+            item.force_valid();
             let p = i as f32;
             let range_x = RangeInclusive::new(rect_data_max.left() + p * width, rect_data_max.left() + (p + 1.0) * width);
             let rect = Rect::from_x_y_ranges(
                 range_x.clone(),
                 RangeInclusive::new(rect_data_max.top() + height * (value_max - item.high) / value_range, rect_data_max.top() + height * (value_max - item.low) / value_range));
-            Self::paint_item(rect, ui, &painter, item);
+            Self::paint_item(rect, ui, &painter, item, i >= self.data.len());
             if let Some(pos) = response.hover_pos() {
                 if range_x.contains(&pos.x) {
                     painter.text(pos - vec2(0.0, text_height * 2.0), Align2::RIGHT_BOTTOM, item.date.as_str(), font.clone(), ui.visuals().strong_text_color());
