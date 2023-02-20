@@ -151,28 +151,47 @@ impl TradingHistoryView {
                             ui.add_enabled_ui(self.predict_len != 0, |ui| {
                                 if ui.button(if self.predicting { "正在预测" } else { "预测" }).clicked() {
                                     let tx = self.tx.clone();
-                                    let mut client = self.client.clone();
+                                    let client = self.client.clone();
                                     let length = self.predict_len;
                                     self.predicting = true;
                                     let raw_data = self.data.clone();
                                     let symbol = self.stock.symbol.to_string();
                                     execute(async move {
                                         if let Some(tx) = tx {
-                                            if let Some(client) = &mut client {
+                                            if let Some(client) = &client {
+                                                let clients = (0..4).map(|_| client.clone()).collect::<Vec<_>>();
                                                 let data_list: Vec<Vec<f32>> = vec![
                                                     raw_data.iter().map(|x| x.high).collect(),
                                                     raw_data.iter().map(|x| x.low).collect(),
                                                     raw_data.iter().map(|x| x.open).collect(),
                                                     raw_data.iter().map(|x| x.close).collect(),
                                                 ];
-                                                let mut results = vec![];
+                                                let mut results: Vec<Vec<f32>> = (0..4).map(|_| vec![]).collect();
                                                 let mut errors = vec![];
-                                                for data in data_list {
-                                                    info!("requesting new predict...");
-                                                    let r = client.predict_data(PredictRequest { data, length }).await;
+                                                let mut features = vec![];
+                                                for (i, (data, mut client)) in data_list.into_iter().zip(clients.into_iter()).enumerate() {
+                                                    info!("requesting new predict... {}/4", i);
+                                                    let r = async move {
+                                                        client.predict_data(PredictRequest { data, length }).await
+                                                    };
+                                                    features.push((i, r));
+                                                }
+                                                #[cfg(not(target_arch = "wasm32"))]
+                                                let features = features.into_iter().map(|r|
+                                                    (r.0, tokio::spawn(r.1))
+                                                ).collect::<Vec<_>>();
+                                                for (i, r) in features {
+                                                    let r = r.await;
                                                     match r {
-                                                        Ok(r) => results.push(r.into_inner().data),
-                                                        Err(e) => errors.push(e),
+                                                        Ok(r) => match r {
+                                                            Ok(r) => {
+                                                                results[i] = r.into_inner().data;
+                                                            }
+                                                            Err(e) => {
+                                                                errors.push(e.to_string())
+                                                            }
+                                                        },
+                                                        Err(e) => errors.push(e.to_string()),
                                                     }
                                                 }
                                                 let len = results.iter().map(|x| x.len()).min();
