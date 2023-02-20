@@ -95,7 +95,7 @@ impl StockView {
     pub fn window(&mut self, ctx: &egui::Context) {
         if self.issue.is_none() && !self.requesting_issue {
             self.requesting_issue = true;
-            let symbol = self.stock.symbol.to_string();
+            let symbol = self.stock.code.to_string();
             let client = self.client.clone();
             let tx = self.tx.clone();
             execute(async move {
@@ -148,7 +148,7 @@ impl StockView {
                 if self.requesting {
                     ui.horizontal(|ui| {
                         ui.spinner();
-                        ui.label("正在加载...");
+                        ui.label("正在加载 K 线...");
                     });
                 } else {
                     TopBottomPanel::top(format!("{}-banner", self.stock.symbol))
@@ -318,6 +318,9 @@ impl StockView {
                                         ui.label("上市日期");
                                         ui.label(issue.launch_date.as_str());
                                         ui.end_row();
+                                    } else {
+                                        ui.spinner();
+                                        ui.label("正在加载股票信息...");
                                     }
                                 });
                         });
@@ -431,9 +434,9 @@ impl StockView {
                     self.predict_error = error;
                 }
             }
-            Message::GotStockIssue((symbol, data, _error)) => {
-                if symbol == self.stock.symbol {
-                    info!("{} set issue", symbol);
+            Message::GotStockIssue((code, data, _error)) => {
+                if code == self.stock.code {
+                    info!("{} set issue {:?}", code, data);
                     self.issue = Some(data);
                     self.requesting_issue = false;
                 }

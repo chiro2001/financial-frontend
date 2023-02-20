@@ -240,7 +240,7 @@ impl FinancialAnalysis {
                 // dispatch messages
                 let mut target = None;
                 for view in &mut self.history_views {
-                    if view.stock.symbol == d.0 {
+                    if view.stock.code == d.0 {
                         target = Some(view);
                     }
                 }
