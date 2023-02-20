@@ -18,6 +18,7 @@ impl Service {
         match msg {
             Message::ApiClientConnect(_) => {}
             Message::LoginDone(m) => { self.channel.tx.send(LoginDone(m)).unwrap(); }
+            _ => {}
         }
         Ok(false)
     }

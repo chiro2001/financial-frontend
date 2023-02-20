@@ -26,7 +26,8 @@ impl FinancialAnalysis {
                     // block_on(self.login());
                     if let Some(client) = &self.client {
                         let mut client = client.clone();
-                        let tx = self.channel.as_ref().map(|x| x.tx.clone());
+                        // let tx = self.channel.as_ref().map(|x| x.tx.clone());
+                        let tx = self.loop_tx.as_ref().map(|x| x.clone());
                         execute(async move {
                             info!("login, client: {:?}", client);
                             let r = client.login(LoginRegisterRequest { username: "".to_string(), password: "".to_string() }).await;

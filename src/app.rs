@@ -2,6 +2,11 @@ use crate::constants::REPAINT_AFTER_SECONDS;
 use crate::financial_analysis::FinancialAnalysis;
 use crate::run_mode::RunMode;
 use egui::{CentralPanel, SidePanel, TopBottomPanel, Window};
+use rpc::api::StockListResp;
+use tonic::Request;
+use tracing::info;
+use crate::message::Message;
+use crate::utils::execute;
 
 impl eframe::App for FinancialAnalysis {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
@@ -29,6 +34,22 @@ impl eframe::App for FinancialAnalysis {
                 self.message_handler(rx);
             }
         }
+        if !self.stock_list_requesting && self.stock_list.is_empty() && !self.token.is_empty() {
+            if let Some(mut client) = self.client.clone() {
+                let tx = self.loop_tx.as_ref().map(|x| x.clone());
+                self.stock_list_requesting = true;
+                execute(async move {
+                    let r = client.stock_list(Request::new(())).await;
+                    if let Ok(stock) = r {
+                        let stock: StockListResp = stock.into_inner();
+                        info!("got stock_list: {}", stock.data.len());
+                        if let Some(tx) = tx {
+                            tx.send(Message::GotStockList(stock)).unwrap();
+                        }
+                    }
+                });
+            }
+        }
 
         TopBottomPanel::top("global_menu").show(ctx, |ui| {
             egui::menu::bar(ui, |ui| {
@@ -44,6 +65,7 @@ impl eframe::App for FinancialAnalysis {
         CentralPanel::default().show(ctx, |ui| {
             ui.add_enabled_ui(self.login_done && !self.token.is_empty(), |ui| {
                 ui.label("主界面");
+                ui.label(format!("stocks: {}, requesting: {}", self.stock_list.len(), self.stock_list_requesting));
             });
         });
         if !self.login_done {
@@ -52,10 +74,21 @@ impl eframe::App for FinancialAnalysis {
             } else {
                 Window::new("连接中...")
                     .show(ctx, |ui| {
-                        ui.label("正在连接后端...");
-                        ui.spinner();
+                        ui.horizontal(|ui| {
+                            ui.label("正在连接后端...");
+                            ui.spinner();
+                        });
                     });
             }
+        }
+        if self.stock_list_requesting {
+            Window::new("加载数据...")
+                .show(ctx, |ui| {
+                    ui.horizontal(|ui| {
+                        ui.label("正在拉取最新信息...");
+                        ui.spinner();
+                    });
+                });
         }
     }
 

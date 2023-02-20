@@ -10,6 +10,7 @@ use crate::message::{Channel, Message};
 use crate::message::Message::ApiClientConnect;
 use crate::service::Service;
 use rpc::api::api_rpc_client::ApiRpcClient;
+use rpc::api::StockResp;
 
 #[cfg(not(target_arch = "wasm32"))]
 lazy_static! {
@@ -43,6 +44,8 @@ pub struct FinancialAnalysis {
 
     #[serde(skip)]
     pub channel: Option<Channel>,
+    #[serde(skip)]
+    pub loop_tx: Option<mpsc::Sender<Message>>,
 
     // login inputs
     pub input_username: String,
@@ -50,6 +53,10 @@ pub struct FinancialAnalysis {
     pub input_password: String,
     #[serde(skip)]
     pub client: Option<MainApiClient>,
+    #[serde(skip)]
+    pub stock_list: Vec<StockResp>,
+    #[serde(skip)]
+    pub stock_list_requesting: bool,
 }
 
 impl Default for FinancialAnalysis {
@@ -61,10 +68,13 @@ impl Default for FinancialAnalysis {
             frame_history: Default::default(),
             enable_debug_panel: true,
             channel: None,
+            loop_tx: None,
             input_username: "test".to_string(),
             input_password: "test".to_string(),
             // client: None,
             client: None,
+            stock_list: vec![],
+            stock_list_requesting: false,
         }
     }
 }
@@ -111,6 +121,7 @@ impl FinancialAnalysis {
             tx: channel_req_tx,
             rx: channel_resp_rx,
         });
+        self.loop_tx = Some(channel_resp_tx.clone());
         // try to connect server
         let addr = format!("http://127.0.0.1:{}", API_PORT);
         #[cfg(not(target_arch = "wasm32"))]
@@ -167,6 +178,10 @@ impl FinancialAnalysis {
                 info!("token: {:?}", token);
                 self.login_done = true;
                 self.token = token.into();
+            }
+            Message::GotStockList(stock) => {
+                self.stock_list = stock.data;
+                self.stock_list_requesting = false;
             }
         }
     }
