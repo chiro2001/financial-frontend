@@ -4,3 +4,6 @@
 [submodule "tonic-web-wasm-client"]
 	path = tonic-web-wasm-client
 	url = https://github.com/chiro2001/tonic-web-wasm-client
+[submodule "rpc/financial-analysis-grpc"]
+	path = rpc/financial-analysis-grpc
+	url = https://github.com/chiro2001/financial-analysis-grpc
