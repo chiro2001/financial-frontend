@@ -1,7 +1,7 @@
 use crate::constants::REPAINT_AFTER_SECONDS;
 use crate::financial_analysis::FinancialAnalysis;
 use crate::run_mode::RunMode;
-use egui::{CentralPanel, Direction, Layout, SidePanel, TopBottomPanel, Window};
+use egui::{CentralPanel, Direction, Label, Layout, RichText, SidePanel, TopBottomPanel, Window};
 use egui_extras::{Column, TableBuilder};
 use num_traits::Float;
 use regex::Regex;
@@ -67,19 +67,14 @@ impl eframe::App for FinancialAnalysis {
         }
         CentralPanel::default().show(ctx, |ui| {
             ui.add_enabled_ui(self.login_done && !self.token.is_empty(), |ui| {
-                // ui.label("主界面");
-                // ui.label(format!("stocks: {}, requesting: {}", self.stock_list.len(), self.stock_list_requesting));
                 TopBottomPanel::top("search-result").show_inside(ui, |ui| {
-                    // ui.centered_and_justified(|ui| {
-                    //     ui.vertical_centered_justified(|ui| {
-                    //         ui.with_layout(Layout::right_to_left(Align::Center).with_main_justify(true), |ui| {
-                    // ui.with_layout(Layout::left_to_right(Align::Min), |ui| {
                     ui.horizontal(|ui| {
                         ui.label("🔍搜索");
+                        let re = Regex::new(self.search_text.as_str());
                         if ui.text_edit_singleline(&mut self.search_text).changed() || self.search_text != self.stock_list_select_text
                             || (self.stock_list_select_text.is_empty() && !self.stock_list.is_empty() && self.stock_list_select.is_empty()) {
                             let filter =
-                                if let Ok(re) = Regex::new(self.search_text.as_str()) {
+                                if let Ok(re) = re.clone() {
                                     let re = re.clone();
                                     Some(move |text: &str| {
                                         re.is_match(text)
@@ -100,10 +95,16 @@ impl eframe::App for FinancialAnalysis {
                             self.stock_list_select = stock_list_select.map(|x| x.clone()).collect();
                             self.stock_list_select_text = self.search_text.to_string();
                         }
+                        ui.add(Label::new(RichText::new(if self.search_text.is_empty() {
+                            "支持正则表达式检索"
+                        } else {
+                            if re.is_ok() {
+                                "正确的正则表达式"
+                            } else {
+                                "无效的正则表达式"
+                            }
+                        }).color(ui.visuals().weak_text_color())))
                     });
-                    //         });
-                    //     });
-                    // });
                 });
                 CentralPanel::default().show_inside(ui, |ui| {
                     pub const SIGNAL_HEIGHT_DEFAULT: f32 = 30.0;
