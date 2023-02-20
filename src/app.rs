@@ -130,9 +130,9 @@ impl eframe::App for FinancialAnalysis {
                             ui.label("名称");
                         });
                     })
-                        .body(|mut body| {
-                            for stock in &self.stock_list_select {
-                                body.row(SIGNAL_HEIGHT_DEFAULT, |mut row| {
+                        .body(|body| {
+                            body.heterogeneous_rows((0..self.stock_list_select.len()).map(|_| SIGNAL_HEIGHT_DEFAULT), |row_index, mut row| {
+                                if let Some(stock) = self.stock_list_select.get(row_index) {
                                     row.col(|ui| {
                                         ui.label(stock.code.to_string());
                                     });
@@ -142,8 +142,8 @@ impl eframe::App for FinancialAnalysis {
                                     row.col(|ui| {
                                         ui.label(stock.name.to_string());
                                     });
-                                });
-                            }
+                                }
+                            });
                         });
                 });
             });
