@@ -1,12 +1,12 @@
 use std::ops::RangeInclusive;
 use std::sync::mpsc;
-use egui::{Align2, Color32, Label, Painter, Rect, RichText, Sense, Ui, Window};
+use egui::{Align2, Color32, FontId, Label, Painter, Rect, RichText, Sense, Ui, vec2, Window};
 use rpc::api::{StockResp, TradingHistoryItem, TradingHistoryRequest, TradingHistoryType};
 use tracing::{error, info};
 use crate::constants::LINE_WIDTH;
 use crate::financial_analysis::MainApiClient;
 use crate::message::Message;
-use crate::utils::execute;
+use crate::utils::{execute, get_text_size};
 
 pub struct TradingHistoryValueItem {
     pub date: String,
@@ -156,7 +156,11 @@ impl TradingHistoryView {
             Self::paint_item(rect, ui, &painter, item);
             if let Some(pos) = response.hover_pos() {
                 if range_x.contains(&pos.x) {
-                    painter.text(pos, Align2::RIGHT_BOTTOM, item.date.as_str(), Default::default(), ui.visuals().strong_text_color());
+                    let font: FontId = Default::default();
+                    let text_height = get_text_size(ui, "T", font.clone()).y;
+                    painter.text(pos, Align2::RIGHT_BOTTOM, item.date.as_str(), font.clone(), ui.visuals().strong_text_color());
+                    painter.text(pos - vec2(0.0, text_height * 1.0), Align2::RIGHT_BOTTOM, format!("收盘{}", item.close), font.clone(), ui.visuals().strong_text_color());
+                    painter.text(pos - vec2(0.0, text_height * 2.0), Align2::RIGHT_BOTTOM, format!("开盘{}", item.open), font.clone(), ui.visuals().strong_text_color());
                 }
             }
         }
