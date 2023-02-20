@@ -208,6 +208,19 @@ impl FinancialAnalysis {
                     target.message_handler(Message::GotTradingHistory(d));
                 }
             }
+            Message::GotPredicts(d) => {
+                // dispatch messages
+                let mut target = None;
+                for view in &mut self.history_views {
+                    if view.stock.symbol == d.0 {
+                        target = Some(view);
+                    }
+                }
+                if let Some(target) = target {
+                    target.message_handler(Message::GotPredicts(d));
+                }
+            }
+
         }
     }
 }

@@ -1,13 +1,14 @@
 use std::ops::RangeInclusive;
 use std::sync::mpsc;
-use egui::{Align2, Color32, ComboBox, FontId, Label, Painter, pos2, Rect, RichText, Sense, Ui, vec2, Window};
-use rpc::api::{StockResp, TradingHistoryItem, TradingHistoryRequest, TradingHistoryType};
+use egui::{Align2, Color32, ComboBox, DragValue, FontId, Label, Painter, pos2, Rect, RichText, Sense, Ui, vec2, Widget, Window};
+use rpc::api::{PredictRequest, StockResp, TradingHistoryItem, TradingHistoryRequest, TradingHistoryType};
 use tracing::{error, info};
 use crate::constants::LINE_WIDTH;
 use crate::financial_analysis::MainApiClient;
 use crate::message::Message;
 use crate::utils::{execute, get_text_size};
 
+#[derive(Debug, Clone)]
 pub struct TradingHistoryValueItem {
     pub date: String,
     pub open: f32,
@@ -35,6 +36,16 @@ impl TradingHistoryValueItem {
         self.volume != 0 && self.low > 0.0 && self.open > 0.0 && self.close > 0.0 && self.high > 0.0
             && self.high >= self.low
     }
+    pub fn new(date: &str) -> Self {
+        Self {
+            date: date.to_string(),
+            open: 0.0,
+            close: 0.0,
+            high: 0.0,
+            low: 0.0,
+            volume: 0,
+        }
+    }
 }
 
 pub struct TradingHistoryView {
@@ -46,6 +57,10 @@ pub struct TradingHistoryView {
     error: String,
     pub typ: TradingHistoryType,
     pub valid: bool,
+    pub predicts: Vec<TradingHistoryValueItem>,
+    pub predict_len: u32,
+    pub predicting: bool,
+    predict_error: String,
 }
 
 impl TradingHistoryView {
@@ -59,6 +74,10 @@ impl TradingHistoryView {
             typ: TradingHistoryType::Week,
             error: "".to_string(),
             valid: true,
+            predicts: vec![],
+            predict_len: 0,
+            predicting: false,
+            predict_error: "".to_string(),
         }
     }
     pub fn window(&mut self, ctx: &egui::Context) {
@@ -103,26 +122,88 @@ impl TradingHistoryView {
                         ui.label("正在加载...");
                     });
                 } else {
-                    let type_last = self.typ.clone();
-                    ComboBox::new(format!("{}-combo-box", self.stock.symbol), "数据单位")
-                        .selected_text(match self.typ {
-                            TradingHistoryType::Daily => "日线",
-                            TradingHistoryType::Week => "周线",
-                            TradingHistoryType::Month => "月线",
-                        })
-                        .show_ui(ui, |ui| {
-                            ui.style_mut().wrap = Some(false);
-                            ui.set_min_width(60.0);
-                            ui.selectable_value(&mut self.typ, TradingHistoryType::Daily, "日线");
-                            ui.selectable_value(&mut self.typ, TradingHistoryType::Week, "周线");
-                            ui.selectable_value(&mut self.typ, TradingHistoryType::Month, "月线");
+                    ui.horizontal(|ui| {
+                        let type_last = self.typ.clone();
+                        ComboBox::new(format!("{}-combo-box", self.stock.symbol), "数据单位")
+                            .selected_text(match self.typ {
+                                TradingHistoryType::Daily => "日线",
+                                TradingHistoryType::Week => "周线",
+                                TradingHistoryType::Month => "月线",
+                            })
+                            .show_ui(ui, |ui| {
+                                ui.style_mut().wrap = Some(false);
+                                ui.set_min_width(60.0);
+                                ui.selectable_value(&mut self.typ, TradingHistoryType::Daily, "日线");
+                                ui.selectable_value(&mut self.typ, TradingHistoryType::Week, "周线");
+                                ui.selectable_value(&mut self.typ, TradingHistoryType::Month, "月线");
+                            });
+                        if type_last != self.typ {
+                            // change request option, reload
+                            self.requesting = false;
+                            self.error.clear();
+                            self.data.clear();
+                        }
+                        ui.label("预测新数据范围");
+                        ui.add_enabled_ui(!self.predicting, |ui| {
+                            DragValue::new(&mut self.predict_len)
+                                .clamp_range(0..=(self.data.len() / 10))
+                                .ui(ui);
+                            ui.add_enabled_ui(self.predict_len != 0, |ui| {
+                                if ui.button(if self.predicting { "正在预测" } else { "预测" }).clicked() {
+                                    let tx = self.tx.clone();
+                                    let mut client = self.client.clone();
+                                    let length = self.predict_len;
+                                    self.predicting = true;
+                                    let raw_data = self.data.clone();
+                                    let symbol = self.stock.symbol.to_string();
+                                    execute(async move {
+                                        if let Some(tx) = tx {
+                                            if let Some(client) = &mut client {
+                                                let data_list: Vec<Vec<f32>> = vec![
+                                                    raw_data.iter().map(|x| x.high).collect(),
+                                                    raw_data.iter().map(|x| x.low).collect(),
+                                                    raw_data.iter().map(|x| x.open).collect(),
+                                                    raw_data.iter().map(|x| x.close).collect(),
+                                                ];
+                                                let mut results = vec![];
+                                                let mut errors = vec![];
+                                                for data in data_list {
+                                                    info!("requesting new predict...");
+                                                    let r = client.predict_data(PredictRequest { data, length }).await;
+                                                    match r {
+                                                        Ok(r) => results.push(r.into_inner().data),
+                                                        Err(e) => errors.push(e),
+                                                    }
+                                                }
+                                                let len = results.iter().map(|x| x.len()).min();
+                                                if results.len() != 4 || len.is_none() || len.unwrap_or(0) == 0 {
+                                                    let e = format!("Errors: {:?}", errors);
+                                                    error!("{}", e);
+                                                    tx.send(Message::GotPredicts((symbol, vec![], e))).unwrap();
+                                                } else {
+                                                    info!("got {:?} predicts", len);
+                                                    let mut predicts = vec![];
+                                                    for i in 0..len.unwrap() {
+                                                        let mut p = TradingHistoryValueItem::new("");
+                                                        p.high = results[0][i];
+                                                        p.low = results[1][i];
+                                                        p.open = results[2][i];
+                                                        p.close = results[3][i];
+                                                        p.volume = 1;
+                                                        predicts.push(p);
+                                                    }
+                                                    tx.send(Message::GotPredicts((symbol, predicts, "".to_string()))).unwrap();
+                                                }
+                                            }
+                                        }
+                                    });
+                                }
+                                if self.predicting {
+                                    ui.spinner();
+                                }
+                            });
                         });
-                    if type_last != self.typ {
-                        // change request option, reload
-                        self.requesting = false;
-                        self.error.clear();
-                        self.data.clear();
-                    }
+                    });
                     if self.data.is_empty() {
                         ui.centered_and_justified(|ui| {
                             if self.error.is_empty() {
@@ -157,7 +238,7 @@ impl TradingHistoryView {
                             if increase { Color32::RED } else { Color32::GREEN });
     }
     fn paint_data(&self, ui: &mut Ui) {
-        let len_data = self.data.len();
+        let len_data = self.data.len() + self.predicts.len();
         if len_data == 0 { return; }
         let font: FontId = Default::default();
         let text_height = get_text_size(ui, "T", font.clone()).y;
@@ -171,7 +252,16 @@ impl TradingHistoryView {
         let height = rect_data_max.height();
         let mut last_date_rect: Option<Rect> = None;
         for i in 0..len_data {
-            let item = self.data.get(i).unwrap();
+            let item = self.data.get(i);
+            let item = if item.is_none() {
+                self.predicts.get(i - self.data.len())
+            } else {
+                item
+            };
+            if item.is_none() {
+                continue;
+            }
+            let item = item.unwrap();
             let p = i as f32;
             let range_x = RangeInclusive::new(rect_data_max.left() + p * width, rect_data_max.left() + (p + 1.0) * width);
             let rect = Rect::from_x_y_ranges(
@@ -180,9 +270,9 @@ impl TradingHistoryView {
             Self::paint_item(rect, ui, &painter, item);
             if let Some(pos) = response.hover_pos() {
                 if range_x.contains(&pos.x) {
-                    painter.text(pos, Align2::RIGHT_BOTTOM, item.date.as_str(), font.clone(), ui.visuals().strong_text_color());
-                    painter.text(pos - vec2(0.0, text_height * 1.0), Align2::RIGHT_BOTTOM, format!("收盘{}", item.close), font.clone(), ui.visuals().strong_text_color());
-                    painter.text(pos - vec2(0.0, text_height * 2.0), Align2::RIGHT_BOTTOM, format!("开盘{}", item.open), font.clone(), ui.visuals().strong_text_color());
+                    painter.text(pos - vec2(0.0, text_height * 2.0), Align2::RIGHT_BOTTOM, item.date.as_str(), font.clone(), ui.visuals().strong_text_color());
+                    painter.text(pos - vec2(0.0, text_height * 0.0), Align2::RIGHT_BOTTOM, format!("收盘{}", item.close), font.clone(), ui.visuals().strong_text_color());
+                    painter.text(pos - vec2(0.0, text_height * 1.0), Align2::RIGHT_BOTTOM, format!("开盘{}", item.open), font.clone(), ui.visuals().strong_text_color());
                 }
             }
             let paint_date = |color: Color32|
@@ -211,6 +301,14 @@ impl TradingHistoryView {
                     self.data = data.into_iter().map(|x| x.into()).collect();
                     self.requesting = false;
                     self.error = error;
+                }
+            }
+            Message::GotPredicts((symbol, data, error)) => {
+                if symbol == self.stock.symbol {
+                    info!("{} set predicts", symbol);
+                    self.predicts = data;
+                    self.predicting = false;
+                    self.predict_error = error;
                 }
             }
             _ => {}
