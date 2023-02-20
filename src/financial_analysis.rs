@@ -57,6 +57,10 @@ pub struct FinancialAnalysis {
     pub stock_list: Vec<StockResp>,
     #[serde(skip)]
     pub stock_list_requesting: bool,
+    #[serde(skip)]
+    pub stock_list_select: Vec<StockResp>,
+    #[serde(skip)]
+    pub stock_list_select_text: String,
 
     pub search_text: String
 }
@@ -77,6 +81,8 @@ impl Default for FinancialAnalysis {
             client: None,
             stock_list: vec![],
             stock_list_requesting: false,
+            stock_list_select: vec![],
+            stock_list_select_text: "".to_string(),
             search_text: "".to_string(),
         }
     }

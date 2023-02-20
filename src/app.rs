@@ -76,30 +76,34 @@ impl eframe::App for FinancialAnalysis {
                     // ui.with_layout(Layout::left_to_right(Align::Min), |ui| {
                     ui.horizontal(|ui| {
                         ui.label("🔍搜索");
-                        ui.text_edit_singleline(&mut self.search_text);
+                        if ui.text_edit_singleline(&mut self.search_text).changed() || self.search_text != self.stock_list_select_text
+                            || (self.stock_list_select_text.is_empty() && !self.stock_list.is_empty() && self.stock_list_select.is_empty()) {
+                            let filter =
+                                if let Ok(re) = Regex::new(self.search_text.as_str()) {
+                                    let re = re.clone();
+                                    Some(move |text: &str| {
+                                        re.is_match(text)
+                                    })
+                                } else { None };
+                            let stock_list_select = self.stock_list.iter().filter(|s| {
+                                if let Some(filter) = &filter {
+                                    filter(&s.code) ||
+                                        filter(&s.symbol) ||
+                                        filter(&s.name)
+                                } else {
+                                    let filter = |text: &str| self.search_text.contains(text);
+                                    filter(&s.code) ||
+                                        filter(&s.symbol) ||
+                                        filter(&s.name)
+                                }
+                            });
+                            self.stock_list_select = stock_list_select.map(|x| x.clone()).collect();
+                            self.stock_list_select_text = self.search_text.to_string();
+                        }
                     });
                     //         });
                     //     });
                     // });
-                });
-                let filter =
-                    if let Ok(re) = Regex::new(self.search_text.as_str()) {
-                        let re = re.clone();
-                        Some(move |text: &str| {
-                            re.is_match(text)
-                        })
-                    } else { None };
-                let stock_list_select = self.stock_list.iter().filter(|s| {
-                    if let Some(filter) = &filter {
-                        filter(&s.code) ||
-                            filter(&s.symbol) ||
-                            filter(&s.name)
-                    } else {
-                        let filter = |text: &str| self.search_text.contains(text);
-                        filter(&s.code) ||
-                            filter(&s.symbol) ||
-                            filter(&s.name)
-                    }
                 });
                 CentralPanel::default().show_inside(ui, |ui| {
                     pub const SIGNAL_HEIGHT_DEFAULT: f32 = 30.0;
@@ -127,7 +131,7 @@ impl eframe::App for FinancialAnalysis {
                         });
                     })
                         .body(|mut body| {
-                            for stock in stock_list_select {
+                            for stock in &self.stock_list_select {
                                 body.row(SIGNAL_HEIGHT_DEFAULT, |mut row| {
                                     row.col(|ui| {
                                         ui.label(stock.code.to_string());
