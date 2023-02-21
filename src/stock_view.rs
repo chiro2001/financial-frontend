@@ -539,14 +539,14 @@ impl StockView {
             }
             Message::GotStockIssue((code, data, _error)) => {
                 if code == self.stock.code {
-                    info!("{} set issue {:?}", code, data);
+                    info!("{} set issue", code);
                     self.issue = Some(data);
                     self.requesting_issue = false;
                 }
             }
             Message::GotGuideLine((code, data, error)) => {
                 if code == self.stock.code {
-                    info!("{} set guide line {:?}", code, data);
+                    info!("{} set guide line", code);
                     self.guide_line = Some(data);
                     self.requesting_guide_line = false;
                     self.guide_line_error = error;
