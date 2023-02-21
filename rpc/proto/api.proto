@@ -12,6 +12,7 @@ service ApiRpc {
     rpc TradingHistory (TradingHistoryRequest) returns (TradingHistoryResp) {}
     rpc PredictData (PredictRequest) returns (PredictResp) {}
     rpc StockIssue (StockIssueRequest) returns (StockIssueResp) {}
+    rpc GuideLine (GuideLineRequest) returns (GuideLineResp) {}
 }
 
 service Register {
@@ -100,4 +101,101 @@ message StockIssueResp {
     string underwriting_fee = 15;
     string announcement_date = 16;
     string launch_date = 17;
+}
+
+message ShareIndex {
+    string Date = 1;
+    string Diluted_EPS = 2;
+    string EPSWA = 3;
+    string AEPS = 4;
+    string EPS_NGOL = 5;
+    string BPS = 6;
+    string BPS_Adjusted = 7;
+    string OCFPS = 8;
+    string CRPS = 9;
+    string UDPPS = 10;
+}
+message Profitability {
+    string Date = 1;
+    string OROA = 2;
+    string OPE = 3;
+    string PROA = 4;
+    string ROPTC = 5;
+    string OPR = 6;
+    string COGSTS = 7;
+    string PMOS = 8;
+    string DOE = 9;
+    string ROC = 10;
+    string ROA = 11;
+    string SGPR = 12;
+    string POTE = 13;
+    string NMP = 14;
+    string POMP = 15;
+    string RR = 16;
+    string ROI = 17;
+    string GP = 18;
+    string ROE = 19;
+    string ROEWA = 20;
+    string NPAD = 21;
+}
+message GrowthAbility {
+    string Date = 1;
+    string MBRG = 2;
+    string NPGR = 3;
+    string GRNA = 4;
+    string GRTA = 5;
+}
+message OperationAbility {
+    string Date = 1;
+    string ART = 2;
+    string DSO = 3;
+    string DSI = 4;
+    string RST = 5;
+    string TFA = 6;
+    string TATO = 7;
+    string TATD = 8;
+    string CATA = 9;
+    string DCAT = 10;
+}
+message DebtDecapitalStructure {
+    string Date = 1;
+    string AR = 2;
+    string QR = 3;
+    string CR = 4;
+    string ICR = 5;
+    string LDWCR = 6;
+    string EAR = 7;
+    string LDR = 8;
+    string REFA = 9;
+    string DER = 10;
+    string RLALF = 11;
+    string MCR = 12;
+    string FANWR = 13;
+    string CIR = 14;
+    string ER = 15;
+    string LVR = 16;
+    string POFA = 17;
+    string LEV = 18;
+    string ASSET = 19;
+}
+message CashFlow {
+    string Date = 1;
+    string NOCFTSR = 2;
+    string ROOCFOA = 3;
+    string NOCFTNP = 4;
+    string NOCFTDR = 5;
+    string CFR = 6;
+}
+
+message GuideLineRequest {
+    string code = 1;
+    string year = 2;
+}
+
+message GuideLineResp {
+    repeated ShareIndex share_index = 1;
+    repeated Profitability profitability = 2;
+    repeated OperationAbility operation_ability = 3;
+    repeated DebtDecapitalStructure debt_decapital_structure = 4;
+    repeated CashFlow cash_flow = 5;
 }

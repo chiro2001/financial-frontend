@@ -1,7 +1,8 @@
 use std::ops::RangeInclusive;
 use std::sync::mpsc;
-use egui::{Align2, CentralPanel, Color32, ComboBox, DragValue, FontId, Grid, Label, Painter, pos2, Rect, RichText, Sense, TopBottomPanel, Ui, vec2, Widget, Window};
-use rpc::api::{PredictRequest, StockIssueRequest, StockIssueResp, StockResp, TradingHistoryItem, TradingHistoryRequest, TradingHistoryType};
+use eframe::emath::Align;
+use egui::{Align2, CentralPanel, Color32, ComboBox, DragValue, FontId, Grid, Label, Layout, Painter, pos2, Rect, RichText, ScrollArea, Sense, TopBottomPanel, Ui, vec2, Widget, Window};
+use rpc::api::{GuideLineRequest, GuideLineResp, PredictRequest, StockIssueRequest, StockIssueResp, StockResp, TradingHistoryItem, TradingHistoryRequest, TradingHistoryType};
 use tracing::{error, info};
 use crate::constants::LINE_WIDTH;
 use crate::financial_analysis::MainApiClient;
@@ -71,6 +72,11 @@ pub struct StockView {
 
     pub issue: Option<StockIssueResp>,
     requesting_issue: bool,
+
+    pub guide_line: Option<GuideLineResp>,
+    pub guide_line_year: usize,
+    requesting_guide_line: bool,
+    guide_line_error: String,
 }
 
 impl StockView {
@@ -90,21 +96,25 @@ impl StockView {
             predict_error: "".to_string(),
             issue: None,
             requesting_issue: false,
+            guide_line: None,
+            guide_line_year: 2022,
+            requesting_guide_line: false,
+            guide_line_error: "".to_string(),
         }
     }
     pub fn window(&mut self, ctx: &egui::Context) {
         if self.issue.is_none() && !self.requesting_issue {
             self.requesting_issue = true;
-            let symbol = self.stock.code.to_string();
+            let code = self.stock.code.to_string();
             let client = self.client.clone();
             let tx = self.tx.clone();
             execute(async move {
                 if let Some(mut client) = client {
                     if let Some(tx) = tx {
-                        let r = client.stock_issue(StockIssueRequest { symbol: symbol.clone() }).await;
+                        let r = client.stock_issue(StockIssueRequest { symbol: code.clone() }).await;
                         if let Ok(r) = r {
                             let data = r.into_inner();
-                            tx.send(Message::GotStockIssue((symbol, data, "".to_string()))).unwrap();
+                            tx.send(Message::GotStockIssue((code, data, "".to_string()))).unwrap();
                         }
                     }
                 }
@@ -142,18 +152,20 @@ impl StockView {
         let mut valid = self.valid;
         Window::new(format!("[{}]{}", self.stock.code, self.stock.name))
             .open(&mut valid)
+            .min_width(32.0)
+            .min_height(64.0)
+            .default_height(480.0)
+            .default_width(640.0)
             .show(ctx, |ui| {
-                ui.set_min_width(32.0);
-                ui.set_min_height(64.0);
-                if self.requesting {
-                    ui.horizontal(|ui| {
-                        ui.spinner();
-                        ui.label("正在加载 K 线...");
-                    });
-                } else {
-                    TopBottomPanel::top(format!("{}-banner", self.stock.symbol))
-                        .resizable(false)
-                        .show_inside(ui, |ui| {
+                TopBottomPanel::top(format!("{}-banner", self.stock.symbol))
+                    .resizable(false)
+                    .show_inside(ui, |ui| {
+                        if self.requesting {
+                            ui.horizontal(|ui| {
+                                ui.spinner();
+                                ui.label("正在加载 K 线...");
+                            });
+                        } else {
                             ui.horizontal(|ui| {
                                 let type_last = self.typ.clone();
                                 ComboBox::new(format!("{}-combo-box", self.stock.symbol), "数据单位")
@@ -255,12 +267,12 @@ impl StockView {
                                     });
                                 });
                             });
-                        });
-                    TopBottomPanel::bottom(format!("{}-history", self.stock.symbol))
-                        // .resizable(true)
-                        // .min_height(64.0)
-                        .resizable(false)
-                        .show_inside(ui, |ui| {
+                        }
+                    });
+                TopBottomPanel::bottom(format!("{}-history", self.stock.symbol))
+                    .resizable(false)
+                    .show_inside(ui, |ui| {
+                        ui.with_layout(Layout::left_to_right(Align::Min).with_cross_justify(true), |ui| {
                             Grid::new(format!("{}-info-grid", self.stock.symbol))
                                 .num_columns(2)
                                 .spacing([40.0, 4.0])
@@ -323,22 +335,113 @@ impl StockView {
                                         ui.label("正在加载股票信息...");
                                     }
                                 });
-                        });
-                    CentralPanel::default().show_inside(ui, |ui| {
-                        if self.data.is_empty() {
-                            ui.centered_and_justified(|ui| {
-                                if self.error.is_empty() {
-                                    ui.label("无数据");
-                                } else {
-                                    ui.add(Label::new(RichText::new(format!("错误: {}", self.error)).color(ui.visuals().warn_fg_color)));
-                                }
+                            ui.vertical(|ui| {
+                                ui.add_enabled_ui(!self.requesting_guide_line, |ui| {
+                                    ui.horizontal(|ui| {
+                                        DragValue::new(&mut self.guide_line_year)
+                                            .clamp_range(2000..=2023)
+                                            .ui(ui);
+                                        if ui.button(format!("获取{}年财务数据", self.guide_line_year)).clicked() {
+                                            self.requesting_guide_line = true;
+                                            let code = self.stock.code.to_string();
+                                            let year = self.guide_line_year.to_string();
+                                            let client = self.client.clone();
+                                            let tx = self.tx.clone();
+                                            execute(async move {
+                                                if let Some(mut client) = client {
+                                                    if let Some(tx) = tx {
+                                                        let r = client.guide_line(GuideLineRequest { code: code.clone(), year }).await;
+                                                        match r {
+                                                            Ok(r) => {
+                                                                let data = r.into_inner();
+                                                                tx.send(Message::GotGuideLine((code, data, "".to_string()))).unwrap();
+                                                            }
+                                                            Err(e) => {
+                                                                tx.send(Message::GotGuideLine((code, Default::default(), e.to_string()))).unwrap();
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            });
+                                        }
+                                    });
+                                });
+                                ScrollArea::vertical().show(ui, |ui| {
+                                    Grid::new(format!("{}-financial-grid", self.stock.symbol))
+                                        .num_columns(2)
+                                        .spacing([40.0, 4.0])
+                                        .striped(true)
+                                        .show(ui, |ui| {
+                                            if let Some(guide_line) = &self.guide_line {
+                                                ui.strong("盈利能力");
+                                                ui.end_row();
+                                                for p in &guide_line.profitability {
+                                                    ui.label("日期");
+                                                    ui.label(p.date.as_str());
+                                                    ui.end_row();
+                                                    ui.label("销售毛利率");
+                                                    ui.label(p.sgpr.as_str());
+                                                    ui.end_row();
+                                                    ui.label("销售净利率");
+                                                    ui.label(p.pmos.as_str());
+                                                    ui.end_row();
+                                                    ui.label("净资产收益率");
+                                                    ui.label(p.roe.as_str());
+                                                    ui.end_row();
+                                                }
+                                                ui.strong("营运能力");
+                                                ui.end_row();
+                                                for p in &guide_line.operation_ability {
+                                                    ui.label("日期");
+                                                    ui.label(p.date.as_str());
+                                                    ui.end_row();
+                                                    ui.label("总资产周转率(次)");
+                                                    ui.label(p.tato.as_str());
+                                                    ui.end_row();
+                                                }
+                                                ui.strong("偿债及资本结构");
+                                                ui.end_row();
+                                                for p in &guide_line.debt_decapital_structure {
+                                                    ui.label("日期");
+                                                    ui.label(p.date.as_str());
+                                                    ui.end_row();
+                                                    ui.label("资产负载率(%)");
+                                                    ui.label(p.lev.as_str());
+                                                    ui.end_row();
+                                                    ui.label("总资产(元)");
+                                                    ui.label(p.asset.as_str());
+                                                    ui.end_row();
+                                                }
+                                            } else {
+                                                if self.requesting_guide_line {
+                                                    if self.guide_line_error.is_empty() {
+                                                        ui.spinner();
+                                                        ui.label("正在加载财务信息...");
+                                                    } else {
+                                                        ui.label(RichText::new(format!("加载财务信息错误: {}", self.guide_line_error)).color(ui.visuals().warn_fg_color));
+                                                    }
+                                                } else {
+                                                    ui.label("未加载财务数据");
+                                                }
+                                            }
+                                        });
+                                });
                             });
-                        } else {
-                            // ui.label(format!("{:?}", self.stock));
-                            self.paint_data(ui);
-                        }
+                        });
                     });
-                }
+                CentralPanel::default().show_inside(ui, |ui| {
+                    if self.data.is_empty() {
+                        ui.centered_and_justified(|ui| {
+                            if self.error.is_empty() {
+                                ui.label("无数据");
+                            } else {
+                                ui.add(Label::new(RichText::new(format!("错误: {}", self.error)).color(ui.visuals().warn_fg_color)));
+                            }
+                        });
+                    } else {
+                        self.paint_data(ui);
+                    }
+                });
             });
         self.valid = valid;
     }
@@ -439,6 +542,14 @@ impl StockView {
                     info!("{} set issue {:?}", code, data);
                     self.issue = Some(data);
                     self.requesting_issue = false;
+                }
+            }
+            Message::GotGuideLine((code, data, error)) => {
+                if code == self.stock.code {
+                    info!("{} set guide line {:?}", code, data);
+                    self.guide_line = Some(data);
+                    self.requesting_guide_line = false;
+                    self.guide_line_error = error;
                 }
             }
             _ => {}
