@@ -246,6 +246,7 @@ impl StockView {
                                                             let features = features.into_iter().map(|r|
                                                             (r.0, tokio::spawn(r.1))
                                                         ).collect::<Vec<_>>();
+                                                        #[cfg(not(target_arch = "wasm32"))]
                                                         for (i, r) in features {
                                                             let r = r.await;
                                                             match r {
@@ -256,6 +257,16 @@ impl StockView {
                                                                     Err(e) => {
                                                                         errors.push(e.to_string())
                                                                     }
+                                                                },
+                                                                Err(e) => errors.push(e.to_string()),
+                                                            }
+                                                        }
+                                                        #[cfg(target_arch = "wasm32")]
+                                                        for (i, r) in features {
+                                                            let r = r.await;
+                                                            match r {
+                                                                Ok(r) =>  {
+                                                                    results[i] = r.into_inner().data;
                                                                 },
                                                                 Err(e) => errors.push(e.to_string()),
                                                             }
