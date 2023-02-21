@@ -1,13 +1,8 @@
-use crate::constants::REPAINT_AFTER_SECONDS;
+use crate::constants::{AVAILABLE_API_HOSTS, REPAINT_AFTER_SECONDS};
 use crate::financial_analysis::FinancialAnalysis;
 use crate::run_mode::RunMode;
-use egui::{CentralPanel, Label, RichText, SidePanel, TopBottomPanel, Window};
+use egui::{CentralPanel, ComboBox, Label, RichText, SidePanel, TopBottomPanel, Window};
 use regex::Regex;
-use rpc::api::StockListResp;
-use tonic::Request;
-use tracing::info;
-use crate::message::Message;
-use crate::utils::execute;
 
 impl eframe::App for FinancialAnalysis {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
@@ -35,21 +30,8 @@ impl eframe::App for FinancialAnalysis {
                 self.message_handler(rx);
             }
         }
-        if !self.stock_list_requesting && self.stock_list.is_empty() && !self.token.is_empty() {
-            if let Some(mut client) = self.client.clone() {
-                let tx = self.loop_tx.as_ref().map(|x| x.clone());
-                self.stock_list_requesting = true;
-                execute(async move {
-                    let r = client.stock_list(Request::new(())).await;
-                    if let Ok(stock) = r {
-                        let stock: StockListResp = stock.into_inner();
-                        info!("got stock_list: {}", stock.data.len());
-                        if let Some(tx) = tx {
-                            tx.send(Message::GotStockList(stock)).unwrap();
-                        }
-                    }
-                });
-            }
+        if !self.stock_list_requesting && self.client.is_some() && self.stock_list.is_empty() && !self.token.is_empty() {
+            self.load_stock_list();
         }
 
         TopBottomPanel::top("global_menu").show(ctx, |ui| {
@@ -62,6 +44,21 @@ impl eframe::App for FinancialAnalysis {
                         self.login_done = false;
                     }
                 });
+                if ui.button("重新连接").clicked() {
+                    self.refresh_client();
+                }
+                let last_api = self.api_host.clone();
+                ComboBox::new("api-select", "远程服务器地址")
+                    .selected_text(&self.api_host)
+                    .show_ui(ui, |ui| {
+                        ui.style_mut().wrap = Some(false);
+                        for api in AVAILABLE_API_HOSTS {
+                            ui.selectable_value(&mut self.api_host, api.to_string(), api.to_string());
+                        }
+                    });
+                if last_api != self.api_host {
+                    self.refresh_client();
+                }
             });
         });
         if self.enable_debug_panel {
@@ -128,15 +125,16 @@ impl eframe::App for FinancialAnalysis {
         if !self.login_done {
             if self.client.is_some() {
                 self.login_window(ctx);
-            } else {
-                Window::new("连接中...")
-                    .show(ctx, |ui| {
-                        ui.horizontal(|ui| {
-                            ui.label("正在连接后端...");
-                            ui.spinner();
-                        });
-                    });
             }
+        }
+        if self.client.is_none() {
+            Window::new("连接中...")
+                .show(ctx, |ui| {
+                    ui.horizontal(|ui| {
+                        ui.label("正在连接后端...");
+                        ui.spinner();
+                    });
+                });
         }
         if self.stock_list_requesting {
             Window::new("加载数据...")

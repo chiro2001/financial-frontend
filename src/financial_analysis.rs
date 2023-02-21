@@ -7,14 +7,15 @@ use egui_extras::{Column, TableBuilder};
 use lazy_static::lazy_static;
 use num_traits::Float;
 use rpc::API_PORT;
-use tracing::info;
+use tracing::{info, warn};
 use crate::message::{Channel, Message};
 use crate::message::Message::ApiClientConnect;
 use crate::service::Service;
 use rpc::api::api_rpc_client::ApiRpcClient;
-use rpc::api::StockResp;
+use rpc::api::{StockListResp, StockResp};
+use tonic::Request;
 use crate::stock_view::StockView;
-use crate::utils::get_random_u32;
+use crate::utils::{execute, get_random_u32};
 
 #[cfg(not(target_arch = "wasm32"))]
 lazy_static! {
@@ -74,6 +75,8 @@ pub struct FinancialAnalysis {
 
     #[serde(skip)]
     pub stock_list_popular: Vec<StockResp>,
+
+    pub api_host: String,
 }
 
 impl Default for FinancialAnalysis {
@@ -98,6 +101,7 @@ impl Default for FinancialAnalysis {
             search_text: "".to_string(),
             history_views: vec![],
             stock_list_popular: vec![],
+            api_host: "localhost".to_string(),
         }
     }
 }
@@ -131,43 +135,28 @@ impl FinancialAnalysis {
         // def.client = Some(crate::rpc_client::get_client());
         def.init()
     }
-    pub fn init(mut self) -> Self {
-        let (channel_req_tx, channel_req_rx) = mpsc::channel();
-        let (channel_resp_tx, channel_resp_rx) = mpsc::channel();
-
-        // launch service
-        Service::start(Channel {
-            tx: channel_resp_tx.clone(),
-            rx: channel_req_rx,
-        });
-        self.channel = Some(Channel {
-            tx: channel_req_tx,
-            rx: channel_resp_rx,
-        });
-        self.loop_tx = Some(channel_resp_tx.clone());
+    pub fn refresh_client(&mut self) {
         // try to connect server
-        let addr = format!("http://127.0.0.1:{}", API_PORT);
+        let addr = format!("http://{}:{}", self.api_host, API_PORT);
         #[cfg(not(target_arch = "wasm32"))]
         {
-            let tx = channel_resp_tx;
-            RT.spawn(async move {
-                info!("preparing main api client...");
-                // let client = rpc::api::api_rpc_client::ApiRpcClient::new(tonic::transport::Endpoint::new(addr).unwrap().connect().await.unwrap());
-                let client: MainApiClient = rpc::api::api_rpc_client::ApiRpcClient::with_interceptor(
-                    tonic::transport::Endpoint::new(addr).unwrap().connect().await.unwrap(),
-                    // tonic::transport::Channel::from_static("http://127.0.0.1:51411").connect().await.unwrap(),
-                    move |mut req: tonic::Request<()>| {
-                        let token: tonic::metadata::MetadataValue<_> = "token".parse().unwrap();
-                        req.metadata_mut().insert("authorization", token.clone());
-                        Ok(req)
-                    },
-                );
-                // let r = client.login(rpc::api::LoginRegisterRequest { username: "".to_string(), password: "".to_string() }).await;
-                // info!("r: {:?}", r);
-                // let client = rpc::api::api_rpc_client::ApiRpcClient::new(tonic::transport::Endpoint::new(addr).unwrap().connect().await.unwrap());
-                info!("got api client: {:?}", client);
-                tx.send(ApiClientConnect(client)).unwrap();
-            });
+            if let Some(tx) = self.loop_tx.clone() {
+                RT.spawn(async move {
+                    info!("preparing main api client...");
+                    // let client = rpc::api::api_rpc_client::ApiRpcClient::new(tonic::transport::Endpoint::new(addr).unwrap().connect().await.unwrap());
+                    let client: MainApiClient = rpc::api::api_rpc_client::ApiRpcClient::with_interceptor(
+                        tonic::transport::Endpoint::new(addr).unwrap().connect().await.unwrap(),
+                        // tonic::transport::Channel::from_static("http://127.0.0.1:51411").connect().await.unwrap(),
+                        move |mut req: tonic::Request<()>| {
+                            let token: tonic::metadata::MetadataValue<_> = "token".parse().unwrap();
+                            req.metadata_mut().insert("authorization", token.clone());
+                            Ok(req)
+                        },
+                    );
+                    info!("got api client: {:?}", client);
+                    tx.send(ApiClientConnect(client)).unwrap();
+                });
+            }
         }
         #[cfg(target_arch = "wasm32")]
         {
@@ -183,7 +172,24 @@ impl FinancialAnalysis {
             );
             info!("got api client: {:?}", client);
             self.client = Some(client);
+            self.load_stock_list();
         }
+    }
+    pub fn init(mut self) -> Self {
+        let (channel_req_tx, channel_req_rx) = mpsc::channel();
+        let (channel_resp_tx, channel_resp_rx) = mpsc::channel();
+
+        // launch service
+        Service::start(Channel {
+            tx: channel_resp_tx.clone(),
+            rx: channel_req_rx,
+        });
+        self.channel = Some(Channel {
+            tx: channel_req_tx,
+            rx: channel_resp_rx,
+        });
+        self.loop_tx = Some(channel_resp_tx.clone());
+        self.refresh_client();
         // TODO: dynamic check token
         if !self.token.is_empty() {
             self.login_done = true;
@@ -201,12 +207,14 @@ impl FinancialAnalysis {
                 info!("token: {:?}", token);
                 self.login_done = true;
                 self.token = token.into();
+                self.load_stock_list();
             }
             Message::LoginError(reason) => {
                 self.login_done = false;
                 self.login_error = reason.into();
             }
             Message::GotStockList(stock) => {
+                info!("GotStockList");
                 self.stock_list = stock.data;
                 self.stock_list_requesting = false;
                 // randomly select some stocks to popular
@@ -352,6 +360,25 @@ impl FinancialAnalysis {
         }, false);
         if let Some(stock) = set_stock {
             self.history_views.push(StockView::new(stock, self.client.clone(), self.loop_tx.clone()));
+        }
+    }
+    pub fn load_stock_list(&mut self) {
+        if let Some(mut client) = self.client.clone() {
+            let tx = self.loop_tx.as_ref().map(|x| x.clone());
+            self.stock_list_requesting = true;
+            execute(async move {
+                info!("requesting stock list");
+                let r = client.stock_list(Request::new(())).await;
+                if let Ok(stock) = r {
+                    let stock: StockListResp = stock.into_inner();
+                    info!("got stock_list: {}", stock.data.len());
+                    if let Some(tx) = tx {
+                        tx.send(Message::GotStockList(stock)).unwrap();
+                    }
+                }
+            });
+        } else {
+            warn!("no client when updating stock!");
         }
     }
 }
