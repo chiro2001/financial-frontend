@@ -7,6 +7,7 @@ use crate::stock_view::TradingHistoryValueItem;
 pub enum Message {
     ApiClientConnect(MainApiClient),
     LoginDone(Token),
+    LoginError(String),
     GotStockList(StockListResp),
     GotTradingHistory((String, Vec<TradingHistoryItem>, String)),
     GotPredicts((String, Vec<TradingHistoryValueItem>, String)),

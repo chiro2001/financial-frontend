@@ -41,6 +41,8 @@ pub struct FinancialAnalysis {
     #[serde(skip)]
     pub login_done: bool,
     #[serde(skip)]
+    pub login_error: String,
+    #[serde(skip)]
     pub run_mode: RunMode,
     #[serde(skip)]
     pub frame_history: FrameHistory,
@@ -79,6 +81,7 @@ impl Default for FinancialAnalysis {
         Self {
             token: "".to_string(),
             login_done: false,
+            login_error: "".to_string(),
             run_mode: Default::default(),
             frame_history: Default::default(),
             enable_debug_panel: true,
@@ -198,6 +201,10 @@ impl FinancialAnalysis {
                 info!("token: {:?}", token);
                 self.login_done = true;
                 self.token = token.into();
+            }
+            Message::LoginError(reason) => {
+                self.login_done = false;
+                self.login_error = reason.into();
             }
             Message::GotStockList(stock) => {
                 self.stock_list = stock.data;

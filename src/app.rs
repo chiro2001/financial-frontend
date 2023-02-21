@@ -56,6 +56,12 @@ impl eframe::App for FinancialAnalysis {
             egui::menu::bar(ui, |ui| {
                 egui::widgets::global_dark_light_mode_switch(ui);
                 ui.checkbox(&mut self.enable_debug_panel, "调试面板");
+                ui.add_enabled_ui(!self.token.is_empty(), |ui| {
+                    if ui.button("退出登录").clicked() {
+                        self.token.clear();
+                        self.login_done = false;
+                    }
+                });
             });
         });
         if self.enable_debug_panel {

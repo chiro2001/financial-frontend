@@ -1,10 +1,10 @@
 use crate::financial_analysis::FinancialAnalysis;
 use crate::password::password;
-use egui::Window;
+use egui::{RichText, Window};
 use rpc::api::{LoginRegisterRequest, ReasonResp};
 use rpc::API_PORT;
 use tracing::{error, info};
-use crate::message::Message::LoginDone;
+use crate::message::Message::{LoginDone, LoginError};
 use crate::utils::{block_on, execute};
 
 impl FinancialAnalysis {
@@ -21,24 +21,29 @@ impl FinancialAnalysis {
                     ui.label("密码");
                     ui.add(password(&mut self.input_password));
                 });
+            if !self.login_error.is_empty() {
+                ui.label(RichText::new(format!("登录失败：{}", self.login_error)).color(ui.visuals().warn_fg_color));
+            }
             ui.vertical_centered_justified(|ui| {
                 if ui.button("登录").clicked() {
                     // block_on(self.login());
                     if let Some(client) = &self.client {
                         let mut client = client.clone();
-                        // let tx = self.channel.as_ref().map(|x| x.tx.clone());
+                        let username = self.input_username.clone();
+                        let password = self.input_password.clone();
                         let tx = self.loop_tx.as_ref().map(|x| x.clone());
                         execute(async move {
                             info!("login, client: {:?}", client);
-                            let r = client.login(LoginRegisterRequest { username: "".to_string(), password: "".to_string() }).await;
+                            let r = client.login(LoginRegisterRequest { username, password }).await;
                             info!("login resp: {:?}", r);
                             match r {
                                 Ok(r) => {
                                     let data = r.into_inner();
-                                    if data.err {
-                                        error!("{}", data.reason);
-                                    } else {
-                                        if let Some(tx) = tx {
+                                    if let Some(tx) = tx {
+                                        if data.err {
+                                            error!("{}", data.reason);
+                                            tx.send(LoginError(data.reason)).unwrap();
+                                        } else {
                                             tx.send(LoginDone(data.token)).unwrap();
                                         }
                                     }
