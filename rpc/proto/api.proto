@@ -13,6 +13,7 @@ service ApiRpc {
     rpc PredictData (PredictRequest) returns (PredictResp) {}
     rpc StockIssue (StockIssueRequest) returns (StockIssueResp) {}
     rpc GuideLine (GuideLineRequest) returns (GuideLineResp) {}
+    rpc IncomeAnalysis (IncomeAnalysisRequest) returns (IncomeAnalysisResp) {}
 }
 
 service Register {
@@ -198,4 +199,13 @@ message GuideLineResp {
     repeated OperationAbility operation_ability = 3;
     repeated DebtDecapitalStructure debt_decapital_structure = 4;
     repeated CashFlow cash_flow = 5;
+}
+
+message IncomeAnalysisRequest {
+    string code = 1;
+}
+
+message IncomeAnalysisResp {
+    repeated float incomes = 1;
+    float ave = 2;
 }

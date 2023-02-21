@@ -260,6 +260,18 @@ impl FinancialAnalysis {
                     target.message_handler(Message::GotGuideLine(d));
                 }
             }
+            Message::GotIncomeAnalysis(d) => {
+                // dispatch messages
+                let mut target = None;
+                for view in &mut self.history_views {
+                    if view.stock.code == d.0 {
+                        target = Some(view);
+                    }
+                }
+                if let Some(target) = target {
+                    target.message_handler(Message::GotIncomeAnalysis(d));
+                }
+            }
         }
     }
     pub fn stock_list(&self, ui: &mut Ui, data: &Vec<StockResp>, on_click: impl FnOnce(StockResp), expand: bool) {

@@ -2,7 +2,7 @@ use std::ops::RangeInclusive;
 use std::sync::mpsc;
 use eframe::emath::Align;
 use egui::{Align2, CentralPanel, Color32, ComboBox, DragValue, FontId, Grid, Label, Layout, Painter, pos2, Rect, RichText, ScrollArea, Sense, TopBottomPanel, Ui, vec2, Widget, Window};
-use rpc::api::{GuideLineRequest, GuideLineResp, PredictRequest, StockIssueRequest, StockIssueResp, StockResp, TradingHistoryItem, TradingHistoryRequest, TradingHistoryType};
+use rpc::api::{GuideLineRequest, GuideLineResp, IncomeAnalysisRequest, IncomeAnalysisResp, PredictRequest, StockIssueRequest, StockIssueResp, StockResp, TradingHistoryItem, TradingHistoryRequest, TradingHistoryType};
 use tracing::{error, info};
 use crate::constants::LINE_WIDTH;
 use crate::financial_analysis::MainApiClient;
@@ -77,6 +77,9 @@ pub struct StockView {
     pub guide_line_year: usize,
     requesting_guide_line: bool,
     guide_line_error: String,
+
+    pub income_analysis: Option<IncomeAnalysisResp>,
+    requesting_income_analysis: bool,
 }
 
 impl StockView {
@@ -100,6 +103,8 @@ impl StockView {
             guide_line_year: 2022,
             requesting_guide_line: false,
             guide_line_error: "".to_string(),
+            income_analysis: None,
+            requesting_income_analysis: false,
         }
     }
     pub fn window(&mut self, ctx: &egui::Context) {
@@ -115,6 +120,23 @@ impl StockView {
                         if let Ok(r) = r {
                             let data = r.into_inner();
                             tx.send(Message::GotStockIssue((code, data, "".to_string()))).unwrap();
+                        }
+                    }
+                }
+            });
+        }
+        if self.income_analysis.is_none() && !self.requesting_income_analysis {
+            self.requesting_income_analysis = true;
+            let code = self.stock.code.to_string();
+            let client = self.client.clone();
+            let tx = self.tx.clone();
+            execute(async move {
+                if let Some(mut client) = client {
+                    if let Some(tx) = tx {
+                        let r = client.income_analysis(IncomeAnalysisRequest { code: code.clone() }).await;
+                        if let Ok(r) = r {
+                            let data = r.into_inner();
+                            tx.send(Message::GotIncomeAnalysis((code, data))).unwrap();
                         }
                     }
                 }
@@ -335,6 +357,31 @@ impl StockView {
                                         ui.label("正在加载股票信息...");
                                     }
                                 });
+                            Grid::new(format!("{}-incomes-grid", self.stock.symbol))
+                                .num_columns(2)
+                                .spacing([40.0, 4.0])
+                                .striped(true)
+                                .show(ui, |ui| {
+                                    ui.strong("三年营业收入");
+                                    ui.end_row();
+                                    ui.label("2022");
+                                    ui.label("2021");
+                                    ui.label("2020");
+                                    ui.end_row();
+                                    if let Some(income_analysis) = &self.income_analysis {
+                                        for i in 0..3 {
+                                            if let Some(v) = income_analysis.incomes.get(i) {
+                                                ui.label(format!("{}", v));
+                                            } else {
+                                                ui.label("数据无效");
+                                            }
+                                        }
+                                        ui.end_row();
+                                        ui.strong("平均营收比");
+                                        ui.label(format!("{}", income_analysis.ave));
+                                        ui.end_row();
+                                    }
+                                });
                             ui.vertical(|ui| {
                                 ui.add_enabled_ui(!self.requesting_guide_line, |ui| {
                                     ui.horizontal(|ui| {
@@ -550,6 +597,13 @@ impl StockView {
                     self.guide_line = Some(data);
                     self.requesting_guide_line = false;
                     self.guide_line_error = error;
+                }
+            }
+            Message::GotIncomeAnalysis((code, data)) => {
+                if code == self.stock.code {
+                    info!("{} set income_analysis", code);
+                    self.income_analysis = Some(data);
+                    self.requesting_income_analysis = false;
                 }
             }
             _ => {}
