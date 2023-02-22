@@ -20,7 +20,7 @@ use crate::utils::{execute, get_random_u32};
 #[cfg(not(target_arch = "wasm32"))]
 lazy_static! {
     pub static ref RT: std::sync::Arc<tokio::runtime::Runtime> = std::sync::Arc::new(tokio::runtime::Builder::new_multi_thread()
-    .enable_io().build().unwrap());
+    .enable_io().enable_time().build().unwrap());
 }
 
 #[cfg(not(target_arch = "wasm32"))]
