@@ -54,23 +54,25 @@ impl FinancialAnalysis {
                     }
                 }
                 if ui.button("注册").clicked() {
-                    block_on(Self::register());
+                    let username = self.input_username.to_string();
+                    let password = self.input_password.to_string();
+                    block_on(Self::register(username, password));
                 }
             });
         });
     }
-    pub async fn register() {
+    pub async fn register(username: String, password: String) {
         let addr = format!("http://127.0.0.1:{}", API_PORT);
         let res =
             match if cfg!(target_arch = "wasm32") {
                 use tonic_web_wasm_client::Client;
                 let mut client = rpc::api::register_client::RegisterClient::new(Client::new(addr));
-                client.register(LoginRegisterRequest { username: "".to_string(), password: "".to_string() }).await
+                client.register(LoginRegisterRequest { username, password }).await
             } else {
                 #[cfg(not(target_arch = "wasm32"))]
                 {
                     let mut client = rpc::api::register_client::RegisterClient::new(tonic::transport::Endpoint::new(addr).unwrap().connect().await.unwrap());
-                    client.register(LoginRegisterRequest { username: "".to_string(), password: "".to_string() }).await
+                    client.register(LoginRegisterRequest { username, password }).await
                 }
                 #[cfg(target_arch = "wasm32")]
                 {
